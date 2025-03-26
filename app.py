@@ -26,7 +26,11 @@ def voice():
     if not recogido:
         response = VoiceResponse()
         gather = Gather(input='speech', action='/voice', method='POST')
-	gather.say("Hola, Leandro. Soy Patricia de BM Cell Comercial. Espero que estés bien. Te llamo para hablar sobre un pago pendiente. ¿Podemos hablar un momento?", voice='Polly.Lupe', language='es-US')
+        gather.say(
+            "Hola, Leandro. Soy Patricia de BM Cell Comercial. Espero que estés bien. Te llamo para hablar sobre un pago pendiente. ¿Podemos hablar un momento?",
+            voice='Polly.Lupe',
+            language='es-US'
+        )
         response.append(gather)
         return Response(str(response), mimetype="text/xml")
 
@@ -42,7 +46,11 @@ def voice():
 
     response = VoiceResponse()
     gather = Gather(input='speech', action='/voice', method='POST')
-    gather.say(respuesta, voice='Polly.Lupe', language='es-US')
+    gather.say(
+        respuesta,
+        voice='Polly.Lupe',
+        language='es-US'
+    )
     response.append(gather)
     return Response(str(response), mimetype="text/xml")
 
