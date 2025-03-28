@@ -44,8 +44,7 @@ def voice():
         if any(word in recogido.lower() for word in wordsToEnfCall):
             return end_call_response()
 
-        # completion = conversation_send_openai(recogido)
-        completion = fake_openai_response()
+        completion = conversation_send_openai(recogido)
         respuesta = completion["choices"][0]["message"]["content"]
         conversation_history.append({"role": "assistant", "content": respuesta})
         return conversation_gatherResponse(voiceResponseObj, respuesta)
@@ -99,9 +98,6 @@ def handle_error_response(voiceResponseObj):
         language="es-US",
     )
     return Response(str(voiceResponseObj), mimetype="text/xml")
-
-def fake_openai_response():
-    return {"choices": [{"message": {"content": "Hola, ¿cómo puedo ayudarte?"}}]}
 
 
 if __name__ == "__main__":
