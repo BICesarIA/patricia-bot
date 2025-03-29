@@ -15,5 +15,5 @@ python app.py
 
 ## Expose application
 ```
-ssh -R 80:localhost:<PORT> nokey@localhost.run
+ssh -R 80:localhost:<PORT> nokey@localhost.run -v
 ```
