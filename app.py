@@ -6,7 +6,7 @@ from collections import defaultdict
 
 app = Flask(__name__)
 
-client = OpenAI(os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 PROMPT_INICIAL = os.getenv("PROMPT_INICIAL")
 gptModelUsed = os.getenv("GPT_MODEL_USED")
 conversation_histories = defaultdict(list)
