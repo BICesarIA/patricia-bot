@@ -2,12 +2,11 @@ from flask import Flask, request, Response
 from openai import OpenAI
 import os
 from twilio.twiml.voice_response import VoiceResponse, Gather
+from collections import defaultdict
 
 app = Flask(__name__)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# Prompt base de Patricia
 PROMPT_INICIAL = """
 Eres Patricia de BM Cell Comercial y llamas al usuario por teléfono. Eres una cobradora amable, persuasiva y enfocada en resultados.
 Todas las respuestas deben estar en español neutro con tono caribeño. No respondas en inglés y no respondas preguntas que no sean referente a agendar
@@ -17,9 +16,7 @@ servicio, tu objetivo es responder dos preguntas, 'Si va a realizar su pago hoy 
 cuando esas dos preguntas sean respondidas le diras al usuario 'pago agendado', no envies emojis ni ningun caracter especial ya que la conversacion 
 sera por llamada telefonica
 """
-conversation_history = [
-    {"role": "system", "content": PROMPT_INICIAL},
-]
+conversation_histories = defaultdict(list)
 sentencesToUserEndCall = [
     "No quiero hablar de eso.",
     "No estoy interesado.",
@@ -73,36 +70,38 @@ sentencesToGptEndCall = [
     "pago agendado",
 ]
 
-
 @app.route("/voice", methods=["POST"])
 def voice():
-    print("✅ Twilio llamó a /voice")
     recogido = request.form.get("SpeechResult", "")
-
+    call_sid = request.form.get("CallSid")
+    conversation_history = conversation_histories[call_sid]
     voiceResponseObj = VoiceResponse()
 
     try:
         if not recogido:
+            conversation_history.append({"role": "system", "content": PROMPT_INICIAL})
+            firstMessage = "Hola. Soy Patricia de BM Cell Comercial. Espero que estés bien. Te llamo para hablar sobre un pago pendiente. ¿Podemos hablar un momento?"
+            conversation_history.append({"role": "assistant", "content": firstMessage})
             return conversation_gatherResponse(
                 voiceResponseObj,
-                "Hola, Leandro. Soy Patricia de BM Cell Comercial. Espero que estés bien. Te llamo para hablar sobre un pago pendiente. ¿Podemos hablar un momento?",
+                firstMessage,
             )
 
         if any(sentence in recogido.lower() for sentence in sentencesToUserEndCall):
-            return end_call_response()
+            return end_call_response(conversation_history, voiceResponseObj)
 
-        completion = conversation_send_openai(recogido)
+        completion = conversation_send_openai(conversation_history, recogido)
         respuesta = completion.choices[0].message.content
 
         if any(sentence in respuesta.lower() for sentence in sentencesToGptEndCall):
-            return end_call_response()
+            return end_call_response(conversation_history, voiceResponseObj)
 
         conversation_history.append({"role": "assistant", "content": respuesta})
         return conversation_gatherResponse(voiceResponseObj, respuesta)
 
     except Exception as e:
         print(f"❌ Error en voice(): {e}")
-        return handle_error_response(voiceResponseObj)
+        return handle_error_response(conversation_history, voiceResponseObj)
 
 
 def conversation_gatherResponse(voiceResponseObj, message):
@@ -123,7 +122,7 @@ def conversation_gatherResponse(voiceResponseObj, message):
     return Response(str(voiceResponseObj), mimetype="text/xml")
 
 
-def conversation_send_openai(recogido):
+def conversation_send_openai(conversation_history, recogido):
     print("🤖 Enviando solicitud a OpenAI...")
     conversation_history.append({"role": "user", "content": recogido})
     return client.chat.completions.create(
@@ -132,7 +131,8 @@ def conversation_send_openai(recogido):
     )
 
 
-def end_call_response(voiceResponseObj):
+def end_call_response(conversation_history, voiceResponseObj):
+    conversation_history.clear()
     voiceResponseObj.say(
         "Gracias por tu tiempo.",
         voice="Polly.Lupe",
@@ -142,7 +142,8 @@ def end_call_response(voiceResponseObj):
     return Response(str(voiceResponseObj), mimetype="text/xml")
 
 
-def handle_error_response(voiceResponseObj):
+def handle_error_response(conversation_history, voiceResponseObj):
+    conversation_history.clear()
     voiceResponseObj.say(
         "Lo siento, ha ocurrido un error procesando esta llamada. Te estaremos llamando mas tarde, disculpe los inconvenientes.",
         voice="Polly.Lupe",
