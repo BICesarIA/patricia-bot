@@ -57,7 +57,7 @@ def conversation_gatherResponse(voiceResponseObj, message):
         action="/voice",
         method="POST",
         language="es-US",
-        timeout=4,
+        timeout=5,
     )
     gather.say(
         message,
