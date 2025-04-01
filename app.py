@@ -117,7 +117,7 @@ def whatsapp():
                 "3. Monto inicial😎\n\n"
                 "Puedes iniciar el proceso enviando tus documentos y cuando sean validados nos pondremos en contacto con tigo."
             )
-            conversation_whatsappp_history.append(incoming_msg)
+            # conversation_whatsappp_history.append(incoming_msg)
         elif incoming_msg in ["3", "tres", "3️⃣"]:
             msg.body(
                 "Alma Rosa 1ra,  Santo Domingo Este, a una esquina de la sabana larga.\n\n"
