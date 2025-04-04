@@ -1,6 +1,6 @@
 1. Install dependencies
 ```
-pip install flask openai twilio python-dotenv
+pip install flask pandas openai twilio python-dotenv
 ```
 
 2. Set Up Environment Variables
