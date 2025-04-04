@@ -67,13 +67,11 @@ def voice():
         return handle_error_response(conversation_history, voiceResponseObj)
 
 
-@app.route("/whatsapp", methods=["GET"])
-# @app.route("/whatsapp", methods=["POST"])
+@app.route("/whatsapp", methods=["POST"])
 def whatsapp():
     try:
         googleDriveFileURL = "https://docs.google.com/spreadsheets/d/1wd6_OVgyhYFOvmuXS_oHRmaH-Ou4dPYo5pWbJZcjtpU/export?format=csv&gid=0"
-        incoming_msg = request.args.get("msg")
-        # incoming_msg = request.values.get("Body", "").lower()
+        incoming_msg = request.values.get("Body", "").lower()
         resp = MessagingResponse()
         msg = resp.message()
         greetings_word_sentences = ["hola", "saludos", "buenas", "hi", "hello"]
@@ -85,8 +83,7 @@ def whatsapp():
         """
         # 5️⃣ Hablar con un agente
 
-        sender_number = "829"
-        # sender_number = request.form.get("From")
+        sender_number = request.form.get("From")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
 
         if incoming_msg == "cancelar" or (
