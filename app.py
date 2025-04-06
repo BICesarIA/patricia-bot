@@ -12,13 +12,19 @@ from utils.twilio import (
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
 
-from utils.whatsappBot import apply_to_offer, invalid_option, item_selected
+from utils.whatsappBot import (
+    history_conversation_flow,
+)
 
 app = Flask(__name__)
 
 PROMPT_INICIAL = os.getenv("PROMPT_INICIAL")
 conversation_histories = defaultdict(list)
-conversation_whatsappp_histories = defaultdict(list)
+conversation_whatsappp_histories = defaultdict(
+    lambda: {
+        "conversation_flow": [],
+    }
+)
 sentencesToGptEndCall = [
     "pago agendado",
     "Gracias por su tiempo",
@@ -74,207 +80,108 @@ def whatsapp():
         incoming_msg = request.values.get("Body", "").lower()
         resp = MessagingResponse()
         msg = resp.message()
-        greetings_word_sentences = ["hola", "saludos", "buenas", "hi", "hello"]
         optionsMessage = """
     1️⃣ Aplicar para la oferta?
     2️⃣ Otro equipo distinto a la oferta?
     3️⃣ Ubicación
     4️⃣ Métodos de pago
         """
-        # 5️⃣ Hablar con un agente
 
         sender_number = request.form.get("From")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
+        conversation_last_interaction = (
+            conversation_whatsappp_history["conversation_flow"][-1]
+            if len(conversation_whatsappp_history["conversation_flow"]) > 0
+            else []
+        )
 
-        if incoming_msg == "cancelar" or (
-            any(word in incoming_msg for word in greetings_word_sentences)
-            and conversation_whatsappp_history
-        ):
-            conversation_whatsappp_history.clear()
+        if len(conversation_whatsappp_history["conversation_flow"]) == 0:
+            response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
-        if len(conversation_whatsappp_history) == 0:
-            msg.body(
-                "*CESAR IA Celulares*\n\n"
-                "Hola👋, Un placer de saludarte.\n"
-                "¿En qué podemos servirle?\n"
-                f"{optionsMessage}"
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                incoming_msg,
+                "start_menu",
+                "select_menu_option",
+                response,
             )
-            if incoming_msg != "cancelar":
-                conversation_whatsappp_history.append(incoming_msg)
-            else:
-                conversation_whatsappp_history.append("hola")
+            msg.body(response)
 
-        elif len(conversation_whatsappp_history) == 1:
+        elif conversation_last_interaction["next_step"] == "start_menu" or (
+            (
+                conversation_last_interaction["step"] == "start_menu"
+                or conversation_last_interaction["step"] == "select_menu_option"
+            )
+            and conversation_last_interaction["next_step"] != "redeem_offer_option"
+        ):
+            next_step = None
+
             if incoming_msg in ["1", "uno", "1️⃣"]:
-                apply_to_offer(incoming_msg, conversation_whatsappp_history, msg)
+                next_step = "redeem_offer_option"
+                response = (
+                    "📌 *Aplicar para la oferta* 📌\n\n"
+                    "Dependiendo de los resultados de su evaluación, aplica para el inicial de la oferta desde RD$10 pesos en adelante.\n"
+                    "Para aplicar, necesita:\n"
+                    "1️⃣ Foto de su cédula o Pasaporte.\n"
+                    "2️⃣ Dos familiares que den referencias. (*Se contactarán*)\n"
+                    "3️⃣ Monto inicial 😎\n\n"
+                    "*Envíe sus documentos* para validar su proceso y nos pondremos en contacto con usted."
+                ).strip()
 
             elif incoming_msg in ["2", "dos", "2️⃣"]:
-                msg.body(
-                    "1️⃣ Ver el catalogo de Articulos.\n"
-                    "2️⃣ Buscar.\n\nSi quieres cancelar el proceso, envia *calcelar*"
-                )
-                conversation_whatsappp_history.append(incoming_msg)
+                response = "Aqui iniciara la conversacion con GPT. \n\n*Esto sera implementado en las proximas horas 🍻*"
 
             elif incoming_msg in ["3", "tres", "3️⃣"]:
-                msg.body(
+                response = (
                     "📍 *Ubicación* 📍\n\n"
                     "Alma Rosa 1ra, Santo Domingo Este, a una esquina de la Sabana Larga.\n\n"
                     "📍 Google Maps: https://maps.app.goo.gl/w7LNLx43dawzeN3aA?g_st=ic\n\n"
                     "*También contamos con Delivery y envíos* 🏍️✈️🚍"
-                )
+                ).strip()
 
             elif incoming_msg in ["4", "cuatro", "4️⃣"]:
-                msg.body(
-                    "💰 *Métodos de pago* 💰\n"
-                    + "\n".join(
+                response = (
+                    "💰 *Métodos de pago* 💰\n\n".join(
                         ["💲 Efectivo", "💻 Transferencia", "💳 Tarjeta de Crédito"]
                     )
-                )
+                ).strip()
 
             else:
-                invalid_option(conversation_whatsappp_history, msg, optionsMessage)
+                response = ("⚠️ *Opción no válida* ⚠️\n\n" f"{optionsMessage}").strip()
 
-        elif len(conversation_whatsappp_history) == 2:
-            lastOption = conversation_whatsappp_history[-1]
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                incoming_msg,
+                "select_menu_option",
+                next_step,
+                response,
+            )
+            msg.body(response)
 
-            if lastOption in ["1", "uno", "1️⃣"]:
-                if any(
-                    incoming_msg.lower().endswith(format.lower())
-                    for format in [".jpg", ".png"]
-                ):
-                    msg.body(
-                        "El documento ha sido recibido con exito! estarmod validando su informacion y nos comunacremos con usted"
-                    )
-                    conversation_whatsappp_history.clear()
-                else:
-                    msg.body(
-                        "⚠️ *Debe enviar un documento valido.* ⚠️ \n Si quieres cancelar el proceso, envia *calcelar*"
-                    )
+        elif conversation_last_interaction["next_step"] == "redeem_offer_option":
+            response = "En breve un vendedor se estara comunicando con usted."
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                incoming_msg,
+                "redeem_offer_option",
+                "start_menu",
+                response,
+            )
+            msg.body(response)
+            # elif lastOption in ["2", "dos", "2️⃣"]:
+            #     msg.body("Que estas buscando?")
 
-            elif lastOption in ["2", "dos", "2️⃣"]:
-                if incoming_msg in ["1", "uno", "1️⃣"]:
-                    df = pd.read_csv(googleDriveFileURL)
-                    sorted_categories = sorted(
-                        df["tipo_articulo"].astype(str).str.strip().unique()
-                    )
-                    catalog = "\n".join(
-                        [
-                            f"{i + 1}. {category}"
-                            for i, category in enumerate(sorted_categories)
-                        ]
-                    )
-
-                    msg.body(f"Nuestro Catalogo\n\n{catalog}")
-                    conversation_whatsappp_history.append(incoming_msg)
-
-                elif incoming_msg in ["2", "dos", "2️⃣"]:
-                    msg.body(
-                        "Que articulo esta buscando?\n Si quieres cancelar el proceso, envia *calcelar*"
-                    )
-                    conversation_whatsappp_history.append(incoming_msg)
-
-                else:
-                    msg.body(
-                        "⚠️ *Opción no válida seleccione una opcion del menu principal* ⚠️\n\n"
-                        f"{optionsMessage}"
-                    )
-
-            else:
-                invalid_option(conversation_whatsappp_history, msg, optionsMessage)
-
-        elif len(conversation_whatsappp_history) == 3:
-            lastOption = conversation_whatsappp_history[-1]
-
-            if lastOption in ["1", "uno", "1️⃣"]:
-                df = pd.read_csv(googleDriveFileURL)
-                sorted_categories = sorted(df["tipo_articulo"].unique())
-
-                index = int(incoming_msg) - 1
-                if index > len(sorted_categories):
-                    invalid_option(conversation_whatsappp_history, msg, optionsMessage)
-
-                else:
-                    itemSelected = sorted_categories[index]
-
-                    filtered_df = df[df["tipo_articulo"] == itemSelected].reset_index(
-                        drop=True
-                    )
-                    message = "\n".join(
-                        [
-                            f"{i + 1}. {row['Articulo']} - {row['precio_venta_unitario']} DOP"
-                            for i, row in filtered_df.iterrows()
-                        ]
-                    )
-
-                    conversation_whatsappp_history.append(incoming_msg)
-
-                    msg.body(f"Seleccione el articulo deseado:\n\n{message}")
-
-            elif lastOption in ["2", "dos", "2️⃣"]:
-                df = pd.read_csv(googleDriveFileURL)
-                filtered_df = df[
-                    df["Articulo"].str.contains(incoming_msg, case=False, na=False)
-                ].reset_index(drop=True)
-                message = "\n".join(
-                    [
-                        f"{i + 1}.  {row['Articulo']} - {row['precio_venta_unitario']} DOP"
-                        for i, row in filtered_df.iterrows()
-                    ]
-                )
-                respuesta = ""
-                if len(message) > 0:
-                    conversation_whatsappp_history.append(incoming_msg)
-                    respuesta = f"Coincidencias:\n\n{message}\n\nSi quieres cancelar el proceso, envia *calcelar*"
-                else:
-                    respuesta = f"Sin coincidencias. Pregunta por tu articulo mas adelante y puede que tengamos disponibilidad!"
-                    conversation_whatsappp_history.clear()
-
-                msg.body(respuesta)
-
-        elif len(conversation_whatsappp_history) == 4:
-            optionSelected = conversation_whatsappp_history[-2]
-
-            if optionSelected == "1":
-                df = pd.read_csv(googleDriveFileURL)
-                sorted_categories = sorted(df["tipo_articulo"].unique())
-                itemSelected = sorted_categories[
-                    int(conversation_whatsappp_history[-1]) - 1
-                ]
-
-                filtered_df = df[df["tipo_articulo"] == itemSelected].reset_index(
-                    drop=True
-                )
-                items = [row["Articulo"] for _, row in filtered_df.iterrows()]
-
-                index = int(incoming_msg) - 1
-                if index > len(items):
-                    invalid_option(conversation_whatsappp_history, msg, optionsMessage)
-
-                else:
-                    item_selected(
-                        conversation_whatsappp_history, items, incoming_msg, msg
-                    )
-
-            elif optionSelected == "2":
-                df = pd.read_csv(googleDriveFileURL)
-                filtered_df = df[
-                    df["Articulo"].str.contains(
-                        conversation_whatsappp_history[-1], case=False, na=False
-                    )
-                ].reset_index(drop=True)
-                items = [row["Articulo"] for _, row in filtered_df.iterrows()]
-
-                index = int(incoming_msg) - 1
-                if index > len(items):
-                    invalid_option(conversation_whatsappp_history, msg, optionsMessage)
-
-                else:
-                    item_selected(
-                        conversation_whatsappp_history, items, incoming_msg, msg
-                    )
-
-            else:
-                invalid_option(conversation_whatsappp_history, msg, optionsMessage)
+            #     conversation_flow = conversation_whatsappp_history[conversation_flow]
+            #     conversation_flow.append({"in": 2})
+            #     conversation_whatsappp_history = {
+            #         "conversation_flow": conversation_flow
+            #     }
 
         print(conversation_whatsappp_history)
 
