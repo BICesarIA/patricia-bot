@@ -1,14 +1,7 @@
 from flask import Flask, request
 import os
-from twilio.twiml.voice_response import VoiceResponse
 from collections import defaultdict
 from utils.gpt import conversation_send_openai
-from utils.twilio import (
-    conversation_gatherResponse,
-    end_call_response,
-    handle_error_response,
-    make_voice_call,
-)
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
 
@@ -19,58 +12,11 @@ from utils.whatsappBot import (
 app = Flask(__name__)
 
 PROMPT_INICIAL = os.getenv("PROMPT_INICIAL")
-conversation_histories = defaultdict(list)
 conversation_whatsappp_histories = defaultdict(
     lambda: {
         "conversation_flow": [],
     }
 )
-sentencesToGptEndCall = [
-    "pago agendado",
-    "Gracias por su tiempo",
-]
-
-
-@app.route("/call", methods=["GET"])
-def call():
-    # return make_voice_call("+18098773238")
-    return make_voice_call("8294465093")
-
-
-@app.route("/voice", methods=["POST"])
-def voice():
-    recogido = request.form.get("SpeechResult", "")
-    call_sid = request.form.get("CallSid")
-    conversation_history = conversation_histories[call_sid]
-    voiceResponseObj = VoiceResponse()
-
-    try:
-        if not recogido:
-            conversation_history.append({"role": "system", "content": PROMPT_INICIAL})
-            firstMessage = "Hola. Soy Patricia de BM Cell Comercial. Espero que estés bien. debes un total de 500 pesos, deseas pagarlo hoy o mañana?."
-            # firstMessage = "Hola. Soy Patricia de BM Cell Comercial. Espero que estés bien. Te llamo para hablar sobre un pago pendiente."
-            conversation_history.append({"role": "assistant", "content": firstMessage})
-            return conversation_gatherResponse(
-                voiceResponseObj,
-                firstMessage,
-            )
-
-        completion = conversation_send_openai(conversation_history, recogido)
-        respuesta = completion.choices[0].message.content
-
-        if any(sentence in respuesta.lower() for sentence in sentencesToGptEndCall):
-            return end_call_response(
-                conversation_history,
-                voiceResponseObj,
-                respuesta,
-            )
-
-        conversation_history.append({"role": "assistant", "content": respuesta})
-        return conversation_gatherResponse(voiceResponseObj, respuesta)
-
-    except Exception as e:
-        app.logger.error(e)
-        return handle_error_response(conversation_history, voiceResponseObj)
 
 
 @app.route("/whatsapp", methods=["POST"])
@@ -95,6 +41,7 @@ def whatsapp():
             else []
         )
 
+        # if conversation_last_interaction["typeResponse"] == "gpt":
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
             response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
@@ -106,6 +53,7 @@ def whatsapp():
                 "start_menu",
                 "select_menu_option",
                 response,
+                "bot",
             )
             msg.body(response)
 
@@ -115,6 +63,7 @@ def whatsapp():
                 or conversation_last_interaction["step"] == "select_menu_option"
             )
             and conversation_last_interaction["next_step"] != "redeem_offer_option"
+            and conversation_last_interaction["next_step"] != "start_gpt_conversation"
         ):
             next_step = None
 
@@ -131,7 +80,8 @@ def whatsapp():
                 ).strip()
 
             elif incoming_msg in ["2", "dos", "2️⃣"]:
-                response = "Aqui iniciara la conversacion con GPT. \n\n*Esto sera implementado en las proximas horas 🍻*"
+                next_step = "start_gpt_conversation"
+                response = "Que articulo esta buscando?"
 
             elif incoming_msg in ["3", "tres", "3️⃣"]:
                 response = (
@@ -159,6 +109,7 @@ def whatsapp():
                 "select_menu_option",
                 next_step,
                 response,
+                "bot",
             )
             msg.body(response)
 
@@ -172,19 +123,116 @@ def whatsapp():
                 "redeem_offer_option",
                 "start_menu",
                 response,
+                "bot",
             )
             msg.body(response)
-            # elif lastOption in ["2", "dos", "2️⃣"]:
-            #     msg.body("Que estas buscando?")
 
-            #     conversation_flow = conversation_whatsappp_history[conversation_flow]
-            #     conversation_flow.append({"in": 2})
-            #     conversation_whatsappp_history = {
-            #         "conversation_flow": conversation_flow
-            #     }
+        elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
+            df = pd.read_csv(googleDriveFileURL)
+            catalogo = "\n".join(
+                [
+                    f"(tipo_articulo: {row['tipo_articulo']}; Articulo: {row['Articulo']}; precio_venta_unitario: {row['precio_venta_unitario']} DOP)"
+                    for _, row in df.iterrows()
+                ]
+            )
+
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                {
+                    "role": "system",
+                    "content": f"{PROMPT_INICIAL} Este es el catalogo de articulos: {catalogo}",
+                },
+                None,
+                None,
+                None,
+                "gpt",
+            )
+
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                {"role": "user", "content": incoming_msg},
+                "start_gpt_conversation",
+                None,
+                None,
+                "gpt",
+            )
+
+            gpt_conversation_history = [
+                msg.get("incoming_msg")
+                for msg in conversation_whatsappp_history["conversation_flow"]
+                if msg.get("typeResponse") == "gpt"
+            ]
+            gpt_response = conversation_send_openai(gpt_conversation_history)
+
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                None,
+                "start_gpt_conversation",
+                "gpt_conversation",
+                {"role": "assistant", "content": gpt_response},
+                "gpt",
+            )
+            msg.body(gpt_response)
+
+        elif conversation_last_interaction["next_step"] == "gpt_conversation":
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                {"role": "user", "content": incoming_msg},
+                None,
+                None,
+                None,
+                "gpt",
+            )
+            gpt_conversation_history = []
+            for msg_flow in conversation_whatsappp_history["conversation_flow"]:
+                if msg_flow.get("typeResponse") == "gpt":
+                    if msg_flow.get("incoming_msg") != None:
+                        gpt_conversation_history.append(msg_flow.get("incoming_msg"))
+                    if msg_flow.get("responnse") != None:
+                        gpt_conversation_history.append(msg_flow.get("responnse"))
+
+            gpt_response = conversation_send_openai(gpt_conversation_history)
+            next_step = "gpt_conversation"
+
+            if any(
+                sentence.lower() in gpt_response.lower()
+                for sentence in [
+                    "Articulo seleccionado exitosamente",
+                    "Articulos seleccionados exitosamente",
+                    "Artículos seleccionados exitosamente",
+                    "Artículo seleccionado exitosamente",
+                ]
+            ):
+                next_step = "start_menu"
+            elif any(
+                sentence.lower() in gpt_response.lower()
+                for sentence in [
+                    "El vendedor se estará comunicando contigo en breve"
+                ]
+            ):
+                next_step = "start_menu"
+
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                None,
+                sender_number,
+                {"role": "user", "content": incoming_msg},
+                "gpt_conversation",
+                next_step,
+                {"role": "assistant", "content": gpt_response},
+                "gpt",
+            )
+            msg.body(gpt_response)
 
         print(conversation_whatsappp_history)
-
         return str(resp)
     except Exception as e:
         app.logger.error(e)
