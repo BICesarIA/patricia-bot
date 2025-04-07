@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta, timezone
 from flask import Flask, request
 import os
 from collections import defaultdict
+
+import pytz
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
@@ -12,6 +15,7 @@ from utils.whatsappBot import (
 app = Flask(__name__)
 
 PROMPT_INICIAL = os.getenv("PROMPT_INICIAL")
+INVENTORY_EXCEL_URL = os.getenv("INVENTORY_EXCEL_URL")
 conversation_whatsappp_histories = defaultdict(
     lambda: {
         "conversation_flow": [],
@@ -22,7 +26,6 @@ conversation_whatsappp_histories = defaultdict(
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
     try:
-        googleDriveFileURL = "https://docs.google.com/spreadsheets/d/1wd6_OVgyhYFOvmuXS_oHRmaH-Ou4dPYo5pWbJZcjtpU/export?format=csv&gid=0"
         incoming_msg = request.values.get("Body", "").lower()
         resp = MessagingResponse()
         msg = resp.message()
@@ -33,6 +36,7 @@ def whatsapp():
     4️⃣ Métodos de pago
         """
 
+        to_number = request.form.get("To")
         sender_number = request.form.get("From")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
         conversation_last_interaction = (
@@ -41,12 +45,27 @@ def whatsapp():
             else []
         )
 
+        if conversation_last_interaction:
+            tz = pytz.timezone("America/Santo_Domingo")
+            dominicantime = datetime.now(tz)
+
+            created_at_str = conversation_last_interaction["created_at"]
+            created_at = datetime.strptime(created_at_str, "%Y-%m-%d %H:%M:%S")
+            created_at = tz.localize(created_at)
+
+            time_diff = dominicantime - created_at
+            minutes_passed = int(time_diff.total_seconds() / 60)
+
+            if minutes_passed >= 30:
+                conversation_whatsappp_history["conversation_flow"] = []
+                conversation_last_interaction = []
+
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
             response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 incoming_msg,
                 "start_menu",
@@ -102,7 +121,7 @@ def whatsapp():
 
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 incoming_msg,
                 "select_menu_option",
@@ -116,7 +135,7 @@ def whatsapp():
             response = "En breve un vendedor se estara comunicando con usted."
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 incoming_msg,
                 "redeem_offer_option",
@@ -127,17 +146,17 @@ def whatsapp():
             msg.body(response)
 
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
-            df = pd.read_csv(googleDriveFileURL)
+            df = pd.read_csv(INVENTORY_EXCEL_URL)
             catalogo = "\n".join(
                 [
-                    f"(tipo_articulo: {row['tipo_articulo']}; Articulo: {row['Articulo']}; precio_venta_unitario: {row['precio_venta_unitario']} DOP)"
+                    "; ".join([f"{col}: {row[col]}" for col in row.index])
                     for _, row in df.iterrows()
                 ]
             )
 
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 {
                     "role": "system",
@@ -151,7 +170,7 @@ def whatsapp():
 
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 {"role": "user", "content": incoming_msg},
                 "start_gpt_conversation",
@@ -169,7 +188,7 @@ def whatsapp():
 
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 None,
                 "start_gpt_conversation",
@@ -182,7 +201,7 @@ def whatsapp():
         elif conversation_last_interaction["next_step"] == "gpt_conversation":
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 {"role": "user", "content": incoming_msg},
                 None,
@@ -222,7 +241,7 @@ def whatsapp():
 
             history_conversation_flow(
                 conversation_whatsappp_history,
-                None,
+                to_number,
                 sender_number,
                 {"role": "user", "content": incoming_msg},
                 "gpt_conversation",
