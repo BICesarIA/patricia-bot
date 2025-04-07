@@ -41,7 +41,6 @@ def whatsapp():
             else []
         )
 
-        # if conversation_last_interaction["typeResponse"] == "gpt":
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
             response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
@@ -215,7 +214,8 @@ def whatsapp():
             elif any(
                 sentence.lower() in gpt_response.lower()
                 for sentence in [
-                    "El vendedor se estará comunicando contigo en breve"
+                    "vendedor se estará comunicando contigo",
+                    "vendedor se pondrá en contacto",
                 ]
             ):
                 next_step = "start_menu"
