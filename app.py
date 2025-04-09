@@ -24,10 +24,12 @@ conversation_whatsappp_histories = defaultdict(
 )
 
 
-@app.route("/whatsapp", methods=["POST"])
+@app.route("/whatsapp", methods=["GET"])
+# @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
     try:
-        incoming_msg = request.values.get("Body", "").lower()
+        incoming_msg = request.args.get("msg")
+        # incoming_msg = request.values.get("Body", "").lower()
         resp = MessagingResponse()
         msg = resp.message()
         optionsMessage = """
@@ -37,8 +39,10 @@ def whatsapp():
     4️⃣ Métodos de pago
         """
 
-        to_number = request.form.get("To")
-        sender_number = request.form.get("From")
+        to_number = "809"
+        # to_number = request.form.get("To")
+        # sender_number = request.form.get("From")
+        sender_number = "829"
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
         conversation_last_interaction = (
             conversation_whatsappp_history["conversation_flow"][-1]
@@ -257,8 +261,10 @@ def whatsapp():
                             "edit?usp=sharing", "export?format=csv"
                         )
                     )
-                    image = (df[df["Articulo"].str.lower() == product_name])["Imagen"]
-                    msg.media(image)
+                    image_url = (
+                        (df[df["Articulo"].str.lower() == product_name])["Imagen"]
+                    ).iloc[0]
+                    msg.media(image_url)
 
                     history_conversation_flow(
                         conversation_whatsappp_history,
