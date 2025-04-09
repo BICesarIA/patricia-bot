@@ -245,9 +245,10 @@ def whatsapp():
             )
             msg.body(gpt_response)
 
-            if IMAGE_TRIGGER_PHRASE in gpt_response.lower():
+            if IMAGE_TRIGGER_PHRASE.lower() in gpt_response.lower():
                 match = re.search(
-                    f"{re.escape(IMAGE_TRIGGER_PHRASE)} (.+)", gpt_response.lower()
+                    f"{re.escape(IMAGE_TRIGGER_PHRASE.lower())} (.+)",
+                    gpt_response.lower(),
                 )
                 if match:
                     product_name = match.group(1).strip()
@@ -256,19 +257,19 @@ def whatsapp():
                             "edit?usp=sharing", "export?format=csv"
                         )
                     )
-                    image = (df[df["Articulo"] == product_name])["imagen"]
+                    image = (df[df["Articulo"].str.lower() == product_name])["Imagen"]
                     msg.media(image)
 
-            history_conversation_flow(
-                conversation_whatsappp_history,
-                to_number,
-                sender_number,
-                None,
-                "gpt_conversation",
-                next_step,
-                {"role": "assistant", "content": "<image of product>"},
-                "gpt",
-            )
+                    history_conversation_flow(
+                        conversation_whatsappp_history,
+                        to_number,
+                        sender_number,
+                        None,
+                        "gpt_conversation",
+                        next_step,
+                        {"role": "assistant", "content": "<image of product>"},
+                        "gpt",
+                    )
 
         print(conversation_whatsappp_history)
         if (
