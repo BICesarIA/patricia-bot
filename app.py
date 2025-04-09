@@ -1,19 +1,20 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from flask import Flask, request
 import os
 from collections import defaultdict
-
+import time
 import pytz
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
-
 from utils.whatsappBot import (
     history_conversation_flow,
 )
+import re
 
 app = Flask(__name__)
 
+IMAGE_TRIGGER_PHRASE = "Aquí tienes la imagen de"
 PROMPT_INICIAL = os.getenv("PROMPT_INICIAL")
 INVENTORY_EXCEL_URL = os.getenv("INVENTORY_EXCEL_URL")
 conversation_whatsappp_histories = defaultdict(
@@ -99,7 +100,7 @@ def whatsapp():
 
             elif incoming_msg in ["2", "dos", "2️⃣"]:
                 next_step = "start_gpt_conversation"
-                response = "Que articulo esta buscando?"
+                response = "En que podemos servirle? 🙏🏾"
 
             elif incoming_msg in ["3", "tres", "3️⃣"]:
                 response = (
@@ -146,7 +147,9 @@ def whatsapp():
             msg.body(response)
 
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
-            df = pd.read_csv(INVENTORY_EXCEL_URL)
+            df = pd.read_csv(
+                INVENTORY_EXCEL_URL.replace("edit?usp=sharing", "export?format=csv")
+            )
             catalogo = "\n".join(
                 [
                     "; ".join([f"{col}: {row[col]}" for col in row.index])
@@ -223,18 +226,9 @@ def whatsapp():
             if any(
                 sentence.lower() in gpt_response.lower()
                 for sentence in [
-                    "Articulo seleccionado exitosamente",
-                    "Articulos seleccionados exitosamente",
-                    "Artículos seleccionados exitosamente",
-                    "Artículo seleccionado exitosamente",
-                ]
-            ):
-                next_step = "start_menu"
-            elif any(
-                sentence.lower() in gpt_response.lower()
-                for sentence in [
-                    "vendedor se estará comunicando contigo",
-                    "vendedor se pondrá en contacto",
+                    "De este no tengo en tienda😓. Permíteme validar con mi supervisor si tenemos en almacén y en breve le respondo🙌🏾",
+                    "En breve estoy con usted 🙏🏾",
+                    "Muchas gracias, desea envío o pasaría por tienda?",
                 ]
             ):
                 next_step = "start_menu"
@@ -251,7 +245,37 @@ def whatsapp():
             )
             msg.body(gpt_response)
 
+            if IMAGE_TRIGGER_PHRASE in gpt_response.lower():
+                match = re.search(
+                    f"{re.escape(IMAGE_TRIGGER_PHRASE)} (.+)", gpt_response.lower()
+                )
+                if match:
+                    product_name = match.group(1).strip()
+                    df = pd.read_csv(
+                        INVENTORY_EXCEL_URL.replace(
+                            "edit?usp=sharing", "export?format=csv"
+                        )
+                    )
+                    image = (df[df["Articulo"] == product_name])["imagen"]
+                    msg.media(image)
+
+            history_conversation_flow(
+                conversation_whatsappp_history,
+                to_number,
+                sender_number,
+                None,
+                "gpt_conversation",
+                next_step,
+                {"role": "assistant", "content": "<image of product>"},
+                "gpt",
+            )
+
         print(conversation_whatsappp_history)
+        if (
+            conversation_last_interaction
+            and conversation_last_interaction["typeResponse"] == "gpt"
+        ):
+            time.sleep(5)
         return str(resp)
     except Exception as e:
         app.logger.error(e)
