@@ -27,10 +27,11 @@ conversation_whatsappp_histories = defaultdict(
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
+    incoming_msg = request.values.get("Body", "").lower()
+    resp = MessagingResponse()
+    msg = resp.message()
+
     try:
-        incoming_msg = request.values.get("Body", "").lower()
-        resp = MessagingResponse()
-        msg = resp.message()
         optionsMessage = """
     1️⃣ Aplicar para la oferta?
     2️⃣ Otro equipo distinto a la oferta?
@@ -313,16 +314,27 @@ def whatsapp():
                     "gpt",
                 )
                 msg.body(gpt_response)
-
-        print(conversation_whatsappp_history)
         if (
             conversation_last_interaction
             and conversation_last_interaction["typeResponse"] == "gpt"
         ):
             time.sleep(5)
+        if len(conversation_last_interaction):
+            print(
+                {
+                    "incoming_msg": conversation_last_interaction["incoming_msg"],
+                    "responnse": conversation_last_interaction["responnse"],
+                }
+            )
+        else:
+            print("First Request")
         return str(resp)
     except Exception as e:
         app.logger.error(e)
+        msg.body(
+            "Disculpas, en este momento estamos teniendo problemas, nos estaremos comunicando con tigo mas adelante"
+        )
+        return str(resp)
 
 
 if __name__ == "__main__":
