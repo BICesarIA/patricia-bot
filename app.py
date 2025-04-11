@@ -7,6 +7,7 @@ import pytz
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
+from utils.requests import is_valid_image_url
 from utils.whatsappBot import (
     history_conversation_flow,
 )
@@ -233,18 +234,6 @@ def whatsapp():
             ):
                 next_step = "start_menu"
 
-            history_conversation_flow(
-                conversation_whatsappp_history,
-                to_number,
-                sender_number,
-                {"role": "user", "content": incoming_msg},
-                "gpt_conversation",
-                next_step,
-                {"role": "assistant", "content": gpt_response},
-                "gpt",
-            )
-            msg.body(gpt_response)
-
             if IMAGE_TRIGGER_PHRASE.lower() in gpt_response.lower():
                 match = re.search(
                     f"{re.escape(IMAGE_TRIGGER_PHRASE.lower())} (.+)",
@@ -257,21 +246,73 @@ def whatsapp():
                             "edit?usp=sharing", "export?format=csv"
                         )
                     )
-                    image_url = (
-                        (df[df["Articulo"].str.lower() == product_name])["Imagen"]
-                    ).iloc[0]
-                    msg.media(image_url)
+                    image_series = df[
+                        df["Articulo"].str.lower() == product_name.lower()
+                    ]["Imagen"]
+                    if not image_series.empty:
+                        not_image_response = "Disculpa, no tenemos foto de ese articulo por el momento 😥"
+                        image_url = image_series.iloc[0]
+                        if is_valid_image_url(image_url):
+                            msg.media(image_url)
 
+                            history_conversation_flow(
+                                conversation_whatsappp_history,
+                                to_number,
+                                sender_number,
+                                {"role": "user", "content": incoming_msg},
+                                "gpt_conversation",
+                                next_step,
+                                {"role": "assistant", "content": gpt_response},
+                                "gpt",
+                            )
+                            msg.body(gpt_response)
+
+                            history_conversation_flow(
+                                conversation_whatsappp_history,
+                                to_number,
+                                sender_number,
+                                None,
+                                "gpt_conversation",
+                                next_step,
+                                {"role": "assistant", "content": "<image of product>"},
+                                "gpt",
+                            )
+                        else:
+                            history_conversation_flow(
+                                conversation_whatsappp_history,
+                                to_number,
+                                sender_number,
+                                {"role": "user", "content": incoming_msg},
+                                "gpt_conversation",
+                                next_step,
+                                {"role": "assistant", "content": not_image_response},
+                                "gpt",
+                            )
+                            msg.body(not_image_response)
+                else:
                     history_conversation_flow(
                         conversation_whatsappp_history,
                         to_number,
                         sender_number,
-                        None,
+                        {"role": "user", "content": incoming_msg},
                         "gpt_conversation",
                         next_step,
-                        {"role": "assistant", "content": "<image of product>"},
+                        {"role": "assistant", "content": not_image_response},
                         "gpt",
                     )
+                    msg.body(not_image_response)
+            else:
+                history_conversation_flow(
+                    conversation_whatsappp_history,
+                    to_number,
+                    sender_number,
+                    {"role": "user", "content": incoming_msg},
+                    "gpt_conversation",
+                    next_step,
+                    {"role": "assistant", "content": gpt_response},
+                    "gpt",
+                )
+                msg.body(gpt_response)
 
         print(conversation_whatsappp_history)
         if (
