@@ -15,8 +15,20 @@ def history_conversation_flow(
             "step": step,
             "next_step": next_step,
             "incoming_msg": msg,
-            "responnse": response,
+            "response": response,
             "typeResponse": typeResponse,
             "created_at": created_at,
         }
+    )
+
+
+def clear_conversation(conversation_whatsappp_history):
+    conversation_whatsappp_history["conversation_flow"] = []
+
+
+def get_last_message(conversation_whatsappp_history):
+    return (
+        conversation_whatsappp_history["conversation_flow"][-1]
+        if len(conversation_whatsappp_history["conversation_flow"]) > 0
+        else []
     )

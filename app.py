@@ -4,11 +4,14 @@ import os
 from collections import defaultdict
 import time
 import pytz
+from utils.google_sheets import write_on_sheet_file
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
 from utils.requests import is_valid_image_url
 from utils.whatsappBot import (
+    clear_conversation,
+    get_last_message,
     history_conversation_flow,
 )
 import re
@@ -42,11 +45,7 @@ def whatsapp():
         to_number = request.form.get("To")
         sender_number = request.form.get("From")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
-        conversation_last_interaction = (
-            conversation_whatsappp_history["conversation_flow"][-1]
-            if len(conversation_whatsappp_history["conversation_flow"]) > 0
-            else []
-        )
+        conversation_last_interaction = get_last_message(conversation_whatsappp_history)
 
         if conversation_last_interaction:
             tz = pytz.timezone("America/Santo_Domingo")
@@ -60,8 +59,14 @@ def whatsapp():
             minutes_passed = int(time_diff.total_seconds() / 60)
 
             if minutes_passed >= 30:
-                conversation_whatsappp_history["conversation_flow"] = []
-                conversation_last_interaction = []
+                clear_conversation(conversation_whatsappp_history)
+            elif (
+                conversation_last_interaction["typeResponse"] == "gpt"
+                and conversation_last_interaction["step"] == "gpt_conversation"
+                and conversation_last_interaction["next_step"] == "start_menu"
+                and minutes_passed < 30
+            ):
+                return str(resp)
 
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
             response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
@@ -219,8 +224,8 @@ def whatsapp():
                 if msg_flow.get("typeResponse") == "gpt":
                     if msg_flow.get("incoming_msg") != None:
                         gpt_conversation_history.append(msg_flow.get("incoming_msg"))
-                    if msg_flow.get("responnse") != None:
-                        gpt_conversation_history.append(msg_flow.get("responnse"))
+                    if msg_flow.get("response") != None:
+                        gpt_conversation_history.append(msg_flow.get("response"))
 
             gpt_response = conversation_send_openai(gpt_conversation_history)
             next_step = "gpt_conversation"
@@ -234,6 +239,7 @@ def whatsapp():
                 ]
             ):
                 next_step = "start_menu"
+                clear_conversation(conversation_whatsappp_history)
 
             if IMAGE_TRIGGER_PHRASE.lower() in gpt_response.lower():
                 match = re.search(
@@ -323,11 +329,21 @@ def whatsapp():
             print(
                 {
                     "incoming_msg": conversation_last_interaction["incoming_msg"],
-                    "responnse": conversation_last_interaction["responnse"],
+                    "response": conversation_last_interaction["response"],
                 }
             )
         else:
             print("First Request")
+
+        last_message = get_last_message(conversation_whatsappp_history)
+        write_on_sheet_file(
+            {
+                "from":last_message["from"],
+                "incoming_msg":last_message["incoming_msg"],
+                "response":last_message["response"],
+                "created_at":last_message["created_at"],
+            }
+        )
         return str(resp)
     except Exception as e:
         app.logger.error(e)
