@@ -4,7 +4,7 @@ import os
 from collections import defaultdict
 import time
 import pytz
-from utils.google_sheets import write_on_sheet_file
+from utils.google_sheets import delete_old_messages, write_on_sheet_file
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
 import pandas as pd
@@ -69,6 +69,7 @@ def whatsapp():
                 return str(resp)
 
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
+            delete_old_messages(sender_number)
             response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
             history_conversation_flow(
@@ -338,10 +339,11 @@ def whatsapp():
         last_message = get_last_message(conversation_whatsappp_history)
         write_on_sheet_file(
             {
-                "from":last_message["from"],
-                "incoming_msg":last_message["incoming_msg"],
-                "response":last_message["response"],
-                "created_at":last_message["created_at"],
+                "from": last_message["from"],
+                "incoming_msg": last_message["incoming_msg"],
+                "response": last_message["response"],
+                "created_at": last_message["created_at"],
+                "typeResponse": last_message["typeResponse"],
             }
         )
         return str(resp)
