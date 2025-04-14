@@ -12,6 +12,7 @@ from utils.requests import is_valid_image_url
 from utils.whatsappBot import (
     clear_conversation,
     get_last_message,
+    gpt_end_conversation,
     history_conversation_flow,
 )
 import re
@@ -62,7 +63,10 @@ def whatsapp():
                 clear_conversation(conversation_whatsappp_history)
             elif (
                 conversation_last_interaction["typeResponse"] == "gpt"
-                and conversation_last_interaction["step"] == "gpt_conversation"
+                and (
+                    conversation_last_interaction["step"] == "start_gpt_conversation"
+                    or conversation_last_interaction["step"] == "gpt_conversation"
+                )
                 and conversation_last_interaction["next_step"] == "start_menu"
                 and minutes_passed < 30
             ):
@@ -155,6 +159,7 @@ def whatsapp():
             msg.body(response)
 
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
+            next_step = "gpt_conversation"
             df = pd.read_csv(
                 INVENTORY_EXCEL_URL.replace("edit?usp=sharing", "export?format=csv")
             )
@@ -197,13 +202,19 @@ def whatsapp():
             ]
             gpt_response = conversation_send_openai(gpt_conversation_history)
 
+            end_conversation = gpt_end_conversation(
+                gpt_response, conversation_whatsappp_history
+            )
+            if end_conversation:
+                next_step = "start_menu"
+
             history_conversation_flow(
                 conversation_whatsappp_history,
                 to_number,
                 sender_number,
                 None,
                 "start_gpt_conversation",
-                "gpt_conversation",
+                next_step,
                 {"role": "assistant", "content": gpt_response},
                 "gpt",
             )
@@ -231,16 +242,11 @@ def whatsapp():
             gpt_response = conversation_send_openai(gpt_conversation_history)
             next_step = "gpt_conversation"
 
-            if any(
-                sentence.lower() in gpt_response.lower()
-                for sentence in [
-                    "De este no tengo en tienda😓. Permíteme validar con mi supervisor si tenemos en almacén y en breve le respondo🙌🏾",
-                    "En breve estoy con usted 🙏🏾",
-                    "Muchas gracias, desea envío o pasaría por tienda?",
-                ]
-            ):
+            end_conversation = gpt_end_conversation(
+                gpt_response, conversation_whatsappp_history
+            )
+            if end_conversation:
                 next_step = "start_menu"
-                clear_conversation(conversation_whatsappp_history)
 
             if IMAGE_TRIGGER_PHRASE.lower() in gpt_response.lower():
                 match = re.search(
@@ -326,15 +332,6 @@ def whatsapp():
             and conversation_last_interaction["typeResponse"] == "gpt"
         ):
             time.sleep(5)
-        if len(conversation_last_interaction):
-            print(
-                {
-                    "incoming_msg": conversation_last_interaction["incoming_msg"],
-                    "response": conversation_last_interaction["response"],
-                }
-            )
-        else:
-            print("First Request")
 
         last_message = get_last_message(conversation_whatsappp_history)
         write_on_sheet_file(

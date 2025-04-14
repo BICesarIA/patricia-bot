@@ -32,3 +32,16 @@ def get_last_message(conversation_whatsappp_history):
         if len(conversation_whatsappp_history["conversation_flow"]) > 0
         else []
     )
+
+def gpt_end_conversation(gpt_response, conversation_whatsappp_history):
+    if any(
+        sentence.lower() in gpt_response.lower()
+        for sentence in [
+            "De este no tengo en tienda😓. Permíteme validar con mi supervisor si tenemos en almacén y en breve le respondo🙌🏾",
+            "En breve estoy con usted 🙏🏾",
+            "Muchas gracias, desea envío o pasaría por tienda?",
+        ]
+    ):
+        clear_conversation(conversation_whatsappp_history)
+        return True 
+    return False 

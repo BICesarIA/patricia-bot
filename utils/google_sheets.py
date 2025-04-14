@@ -1,12 +1,23 @@
 from datetime import datetime
+import os
+import json
+import base64
+from dotenv import load_dotenv
+from google.oauth2.service_account import Credentials
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+
+load_dotenv()
+
+creds_base64 = os.getenv("GOOGLE_SHEET_CREDENTIALS")
+creds_json = base64.b64decode(creds_base64).decode("utf-8")
+creds_dict = json.loads(creds_json)
 
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
 ]
-creds = ServiceAccountCredentials.from_json_keyfile_name("sheetCredentials.json", scope)
+
+creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 
 
@@ -30,8 +41,8 @@ def write_on_sheet_file(data):
         new_row = [
             "PRIMERO!" if isFirstMesage else "",
             data["from"],
-            data["incoming_msg"]["content"],
-            data["response"]["content"],
+            data["incoming_msg"]["content"] if data["incoming_msg"] else "",
+            data["response"]["content"] if data["response"] else "",
             data["created_at"],
         ]
         sheet.append_row(new_row)
