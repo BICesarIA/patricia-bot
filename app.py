@@ -184,22 +184,12 @@ def whatsapp():
                 "gpt",
             )
 
-            history_conversation_flow(
-                conversation_whatsappp_history,
-                to_number,
-                sender_number,
-                {"role": "user", "content": incoming_msg},
-                "start_gpt_conversation",
-                None,
-                None,
-                "gpt",
-            )
-
             gpt_conversation_history = [
                 msg.get("incoming_msg")
                 for msg in conversation_whatsappp_history["conversation_flow"]
                 if msg.get("typeResponse") == "gpt"
             ]
+            gpt_conversation_history.append({"role": "user", "content": incoming_msg})
             gpt_response = conversation_send_openai(gpt_conversation_history)
 
             end_conversation = gpt_end_conversation(
@@ -212,7 +202,7 @@ def whatsapp():
                 conversation_whatsappp_history,
                 to_number,
                 sender_number,
-                None,
+                {"role": "user", "content": incoming_msg},
                 "start_gpt_conversation",
                 next_step,
                 {"role": "assistant", "content": gpt_response},
