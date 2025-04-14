@@ -33,6 +33,7 @@ def get_last_message(conversation_whatsappp_history):
         else []
     )
 
+
 def gpt_end_conversation(gpt_response, conversation_whatsappp_history):
     if any(
         sentence.lower() in gpt_response.lower()
@@ -43,5 +44,5 @@ def gpt_end_conversation(gpt_response, conversation_whatsappp_history):
         ]
     ):
         clear_conversation(conversation_whatsappp_history)
-        return True 
-    return False 
+        return True
+    return False
