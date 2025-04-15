@@ -73,7 +73,6 @@ def whatsapp():
                 return str(resp)
 
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
-            delete_old_messages(sender_number)
             response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
             history_conversation_flow(
@@ -159,6 +158,7 @@ def whatsapp():
             msg.body(response)
 
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
+            delete_old_messages(sender_number)
             next_step = "gpt_conversation"
             df = pd.read_csv(
                 INVENTORY_EXCEL_URL.replace("edit?usp=sharing", "export?format=csv")
