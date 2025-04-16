@@ -1,13 +1,17 @@
+import base64
 from datetime import datetime
 from flask import Flask, request
 import os
 from collections import defaultdict
 import time
 import pytz
-from utils.google_sheets import delete_old_messages, write_on_sheet_file
+from utils.google_sheets import (
+    delete_old_messages,
+    read_sheet_inventario,
+    write_on_sheet_file,
+)
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
-import pandas as pd
 from utils.requests import is_valid_image_url
 from utils.whatsappBot import (
     clear_conversation,
@@ -43,8 +47,8 @@ def whatsapp():
     4️⃣ Métodos de pago
         """
 
-        to_number = request.form.get("To")
-        sender_number = request.form.get("From")
+        to_number = (request.form.get("To")).replace("whatsapp:+","")
+        sender_number = (request.form.get("From")).replace("whatsapp:+", "")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
         conversation_last_interaction = get_last_message(conversation_whatsappp_history)
 
@@ -160,9 +164,7 @@ def whatsapp():
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
             delete_old_messages(sender_number)
             next_step = "gpt_conversation"
-            df = pd.read_csv(
-                INVENTORY_EXCEL_URL.replace("edit?usp=sharing", "export?format=csv")
-            )
+            df = read_sheet_inventario()
             catalogo = "\n".join(
                 [
                     "; ".join([f"{col}: {row[col]}" for col in row.index])
@@ -245,11 +247,7 @@ def whatsapp():
                 )
                 if match:
                     product_name = match.group(1).strip()
-                    df = pd.read_csv(
-                        INVENTORY_EXCEL_URL.replace(
-                            "edit?usp=sharing", "export?format=csv"
-                        )
-                    )
+                    df = read_sheet_inventario()
                     image_series = df[
                         df["Articulo"].str.lower() == product_name.lower()
                     ]["Imagen"]

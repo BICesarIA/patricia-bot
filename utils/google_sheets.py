@@ -5,6 +5,7 @@ import base64
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 import gspread
+import pandas as pd
 
 load_dotenv()
 
@@ -15,14 +16,21 @@ creds_dict = json.loads(creds_json)
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
 
 creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 
 
+def read_sheet_inventario():
+    sheet = client.open("Inventario").worksheet("Inventario")
+    rows = sheet.get_all_values()
+    return pd.DataFrame(rows[1:], columns=rows[0])
+
+
 def delete_old_messages(from_number):
-    sheet = client.open("data").worksheet("Sheet1")
+    sheet = client.open("Inventario").worksheet("Chats")
 
     all_rows = sheet.get_all_values()
     headers = all_rows[0]
@@ -34,19 +42,21 @@ def delete_old_messages(from_number):
 
 
 def write_on_sheet_file(data):
-    if data["typeResponse"] == "gpt":
-        sheet = client.open("data").worksheet("Sheet1")
-        isFirstMesage = save_new_phone_number_if_needed(data["from"])
+    sheet = client.open("Inventario").worksheet("Chats")
+    isFirstMesage = save_new_phone_number_if_needed(data["from"])
 
-        new_row = [
-            "PRIMERO!" if isFirstMesage else "",
-            data["from"],
-            data["incoming_msg"]["content"] if data["incoming_msg"] else "",
-            data["response"]["content"] if data["response"] else "",
-            data["created_at"],
-        ]
-        sheet.append_row(new_row)
-        sort_sheet_by_column(sheet, column_index=5)
+    incoming_msg = data["incoming_msg"]["content"] if data["typeResponse"] == "gpt" else data["incoming_msg"]
+    response = data["response"]["content"] if data["typeResponse"] == "gpt" else data["response"]
+
+    new_row = [
+        "PRIMERO!" if isFirstMesage else "",
+        data["from"],
+        incoming_msg,
+        response,
+        data["created_at"],
+    ]
+    sheet.append_row(new_row)
+    sort_sheet_by_column(sheet, column_index=5)
 
 
 def sort_sheet_by_column(sheet, column_index=1):
@@ -66,7 +76,7 @@ def sort_sheet_by_column(sheet, column_index=1):
 
 
 def save_new_phone_number_if_needed(phone_number):
-    cedulas_sheet = client.open("data").worksheet("Cedulas")
+    cedulas_sheet = client.open("Inventario").worksheet("Telefono")
     numbers = cedulas_sheet.col_values(1)
 
     if phone_number not in numbers:
