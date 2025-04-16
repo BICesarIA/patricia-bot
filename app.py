@@ -77,7 +77,9 @@ def whatsapp():
                 return str(resp)
 
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
-            response = f"*CESAR IA Celulares*\n\nHola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
+            df = read_sheet_inventario("Inventario", "Datos")
+            DatosPrincipales = "\n\n".join(df["Datos_Principales"].dropna())
+            response = f"*{DatosPrincipales}* Hola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
             history_conversation_flow(
                 conversation_whatsappp_history,
@@ -118,19 +120,18 @@ def whatsapp():
                 response = "En que podemos servirle? 🙏🏾"
 
             elif incoming_msg in ["3", "tres", "3️⃣"]:
+                df = read_sheet_inventario("Inventario", "Datos")
+                Direccion = "\n\n".join(df["Direccion"].dropna())
                 response = (
                     "📍 *Ubicación* 📍\n\n"
-                    "Alma Rosa 1ra, Santo Domingo Este, a una esquina de la Sabana Larga.\n\n"
-                    "📍 Google Maps: https://maps.app.goo.gl/w7LNLx43dawzeN3aA?g_st=ic\n\n"
+                    f"{Direccion}"
                     "*También contamos con Delivery y envíos* 🏍️✈️🚍"
                 ).strip()
 
             elif incoming_msg in ["4", "cuatro", "4️⃣"]:
-                response = (
-                    "💰 *Métodos de pago* 💰\n\n".join(
-                        ["💲 Efectivo", "💻 Transferencia", "💳 Tarjeta de Crédito"]
-                    )
-                ).strip()
+                df = read_sheet_inventario("Inventario", "Datos")
+                MetodosDePago = "\n".join(df["Metodos_de_Pago"].dropna())
+                response = (f"💰 *Métodos de pago* 💰\n\n{MetodosDePago}").strip()
 
             else:
                 response = ("⚠️ *Opción no válida* ⚠️\n\n" f"{optionsMessage}").strip()
@@ -164,7 +165,7 @@ def whatsapp():
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
             delete_old_messages(sender_number)
             next_step = "gpt_conversation"
-            df = read_sheet_inventario()
+            df = read_sheet_inventario("Inventario", "Inventario")
             catalogo = "\n".join(
                 [
                     "; ".join([f"{col}: {row[col]}" for col in row.index])
@@ -247,7 +248,7 @@ def whatsapp():
                 )
                 if match:
                     product_name = match.group(1).strip()
-                    df = read_sheet_inventario()
+                    df = read_sheet_inventario("Inventario", "Inventario")
                     image_series = df[
                         df["Articulo"].str.lower() == product_name.lower()
                     ]["Imagen"]
