@@ -1,4 +1,3 @@
-import base64
 from datetime import datetime
 from flask import Flask, request
 import os
@@ -78,8 +77,8 @@ def whatsapp():
 
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
             df = read_sheet_inventario("Inventario", "Datos")
-            DatosPrincipales = "\n\n".join(df["Datos_Principales"].dropna())
-            response = f"*{DatosPrincipales}* Hola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
+            DatosPrincipales = "".join(df["Datos_Principales"].dropna())
+            response = f"*{DatosPrincipales}*\n\n Hola👋, Un placer de saludarte.\n¿En qué podemos servirle?\n\n{optionsMessage}".strip()
 
             history_conversation_flow(
                 conversation_whatsappp_history,
