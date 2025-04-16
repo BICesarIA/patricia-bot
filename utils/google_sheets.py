@@ -117,7 +117,7 @@ def save_new_phone_number_if_needed(phone_number):
     numbers = cedulas_sheet.col_values(1)
 
     if phone_number not in numbers:
-        created_at = datetime.strptime(datetime.now(), "%Y-%m-%d %H:%M:%S")
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cedulas_sheet.append_row([phone_number, created_at])
         return True
     return False
