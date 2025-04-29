@@ -3,5 +3,5 @@ services:
     name: patricia-bot
     env: python
     workingDir: server
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "pip install -r server/requirements.txt"
     startCommand: "python app.py"
