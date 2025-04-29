@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: patricia-bot
-    env: python
-    buildCommand: "pip install -r ./server/requirements.txt"
-    startCommand: "python app.py"
