@@ -16,13 +16,14 @@ from utils.whatsappBot import (
     history_conversation_flow,
 )
 import re
-from utils.database.postgres import save_message_to_db
+from utils.database.postgres import get_conversations_from_number, save_message_to_db
 from collections import defaultdict
 from twilio.rest import Client
 from pydantic import BaseModel
 from fastapi import Request
 from fastapi.responses import Response
 from twilio.twiml.messaging_response import MessagingResponse
+from typing import List
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -355,19 +356,38 @@ class SendMessageRequest(BaseModel):
 
 @router.post("/send")
 async def send_message(data: SendMessageRequest):
-    message = twilio_client.messages.create(
-        body=data.message,
-        from_=whatsapp_from,
-        to=f"whatsapp:{data.to}",
-    )
+    try:
+        message = twilio_client.messages.create(
+            body=data.message,
+            from_=whatsapp_from,
+            to=f"whatsapp:{data.to}",
+        )
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
     await save_message_to_db(
         {
-            "to": data.to,
-            "from": whatsapp_from,
+            "to": data.to.replace("+", ""),
+            "from": whatsapp_from.replace("whatsapp:+", ""),
             "incoming_msg": "",
             "response": data.message,
             "typeResponse": "vendedor",
         }
     )
     return {"sid": message.sid}
+
+
+class Conversation(BaseModel):
+    id: int
+    to: str
+    from_number: str
+    incoming_msg: str
+    response: str
+    type_response: str
+    created_at: datetime
+
+
+@router.get("/conversations/{phone_number}", response_model=List[Conversation])
+async def get_conversations_by_number(phone_number: str):
+    result = await get_conversations_from_number(phone_number)
+    return result
