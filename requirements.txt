@@ -1,9 +1,0 @@
-flask
-pandas
-openai
-twilio
-pytz
-gspread
-gspread-dataframe
-oauth2client
-python-dotenv

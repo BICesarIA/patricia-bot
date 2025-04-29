@@ -1,13 +1,10 @@
 from datetime import datetime
-from flask import Flask, request
+from fastapi import APIRouter, Request
 import os
-from collections import defaultdict
 import time
 import pytz
 from utils.google_sheets import (
-    delete_old_messages,
     read_sheet_inventario,
-    write_on_sheet_file,
 )
 from utils.gpt import conversation_send_openai
 from twilio.twiml.messaging_response import MessagingResponse
@@ -19,8 +16,15 @@ from utils.whatsappBot import (
     history_conversation_flow,
 )
 import re
+from utils.database.postgres import save_message_to_db
+from collections import defaultdict
+from twilio.rest import Client
+from pydantic import BaseModel
 
-app = Flask(__name__)
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+whatsapp_from = "whatsapp:+18492866787"
 
 IMAGE_TRIGGER_PHRASE = "Aquí tienes la imagen de"
 PROMPT_INICIAL = os.getenv("PROMPT_INICIAL")
@@ -31,10 +35,13 @@ conversation_whatsappp_histories = defaultdict(
     }
 )
 
+router = APIRouter()
 
-@app.route("/whatsapp", methods=["POST"])
-def whatsapp():
-    incoming_msg = request.values.get("Body", "").lower()
+
+@router.post("/whatsapp")
+async def whatsapp(request: Request):
+    form = await request.form()
+    incoming_msg = form.get("Body", "").lower()
     resp = MessagingResponse()
     msg = resp.message()
 
@@ -46,8 +53,8 @@ def whatsapp():
     4️⃣ Métodos de pago
         """
 
-        to_number = (request.form.get("To")).replace("whatsapp:+","")
-        sender_number = (request.form.get("From")).replace("whatsapp:+", "")
+        to_number = form.get("To").replace("whatsapp:+", "")
+        sender_number = form.get("From").replace("whatsapp:+", "")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
         conversation_last_interaction = get_last_message(conversation_whatsappp_history)
 
@@ -162,7 +169,6 @@ def whatsapp():
             msg.body(response)
 
         elif conversation_last_interaction["next_step"] == "start_gpt_conversation":
-            delete_old_messages(sender_number)
             next_step = "gpt_conversation"
             df = read_sheet_inventario("Inventario", "Inventario")
             catalogo = "\n".join(
@@ -322,23 +328,43 @@ def whatsapp():
             time.sleep(5)
 
         last_message = get_last_message(conversation_whatsappp_history)
-        write_on_sheet_file(
+        await save_message_to_db(
             {
+                "to": last_message["To"],
                 "from": last_message["from"],
                 "incoming_msg": last_message["incoming_msg"],
                 "response": last_message["response"],
-                "created_at": last_message["created_at"],
                 "typeResponse": last_message["typeResponse"],
             }
         )
         return str(resp)
     except Exception as e:
-        app.logger.error(e)
         msg.body(
             "Disculpas, en este momento estamos teniendo problemas, nos estaremos comunicando con tigo mas adelante"
         )
         return str(resp)
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+class SendMessageRequest(BaseModel):
+    to: str
+    message: str
+
+
+@router.post("/send")
+async def send_message(data: SendMessageRequest):
+    message = twilio_client.messages.create(
+        body=data.message,
+        from_=whatsapp_from,
+        to=f"whatsapp:{data.to}",
+    )
+
+    await save_message_to_db(
+        {
+            "to": data.to,
+            "from": whatsapp_from,
+            "incoming_msg": "",
+            "response": data.message,
+            "typeResponse": "vendedor",
+        }
+    )
+    return {"sid": message.sid}
