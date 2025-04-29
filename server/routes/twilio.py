@@ -20,6 +20,9 @@ from utils.database.postgres import save_message_to_db
 from collections import defaultdict
 from twilio.rest import Client
 from pydantic import BaseModel
+from fastapi import Request
+from fastapi.responses import Response
+from twilio.twiml.messaging_response import MessagingResponse
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -337,12 +340,12 @@ async def whatsapp(request: Request):
                 "typeResponse": last_message["typeResponse"],
             }
         )
-        return str(resp)
+        return Response(content=str(resp), media_type="application/xml")
     except Exception as e:
         msg.body(
             "Disculpas, en este momento estamos teniendo problemas, nos estaremos comunicando con tigo mas adelante"
         )
-        return str(resp)
+        return Response(content=str(resp), media_type="application/xml")
 
 
 class SendMessageRequest(BaseModel):
