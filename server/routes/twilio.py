@@ -84,6 +84,15 @@ async def whatsapp(request: Request):
                 and conversation_last_interaction["next_step"] == "start_menu"
                 and minutes_passed < 30
             ):
+                await save_message_to_db(
+                    {
+                        "to": conversation_last_interaction["To"],
+                        "from": conversation_last_interaction["from"],
+                        "incoming_msg": incoming_msg,
+                        "response": "",
+                        "typeResponse": "vendedor",
+                    }
+                )
                 return str(resp)
 
         if len(conversation_whatsappp_history["conversation_flow"]) == 0:
@@ -336,8 +345,8 @@ async def whatsapp(request: Request):
             {
                 "to": last_message["To"],
                 "from": last_message["from"],
-                "incoming_msg": last_message["incoming_msg"],
-                "response": last_message["response"],
+                "incoming_msg": last_message["incoming_msg"] if last_message["typeResponse"] != "gpt" else last_message["incoming_msg"]["content"],
+                "response": last_message["response"] if last_message["typeResponse"] != "gpt" else last_message["response"]["content"],
                 "typeResponse": last_message["typeResponse"],
             }
         )
@@ -356,14 +365,11 @@ class SendMessageRequest(BaseModel):
 
 @router.post("/send")
 async def send_message(data: SendMessageRequest):
-    try:
-        message = twilio_client.messages.create(
-            body=data.message,
-            from_=whatsapp_from,
-            to=f"whatsapp:{data.to}",
-        )
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    message = twilio_client.messages.create(
+        body=data.message,
+        from_=whatsapp_from,
+        to=f"whatsapp:{data.to}",
+    )
 
     await save_message_to_db(
         {

@@ -40,7 +40,8 @@ def gpt_end_conversation(gpt_response, conversation_whatsappp_history):
         for sentence in [
             "De este no tengo en tienda😓. Permíteme validar con mi supervisor si tenemos en almacén y en breve le respondo🙌🏾",
             "En breve estoy con usted 🙏🏾",
-            "Muchas gracias, desea envío o pasaría por tienda?",
+            "desea envío o pasaría por tienda",
+            "deseas envío o pasarías por la tienda"
         ]
     ):
         clear_conversation(conversation_whatsappp_history)
