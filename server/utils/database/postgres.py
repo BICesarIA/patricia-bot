@@ -23,8 +23,12 @@ async def save_message_to_db(last_message: dict):
         "type_response": last_message.get("typeResponse"),
     }
     query = conversations.insert().values(obj)
-    await database.execute(query)
-    await manager.broadcast({"type": "message", "payload": obj})
+    last_record_id = await database.execute(query)
+
+    select_query = select(conversations).where(conversations.c.id == last_record_id)
+    row = await database.fetch_one(select_query)
+
+    await manager.broadcast({"type": "message", "payload": dict(row)})
 
 
 async def conversations_from_number(phone_number):
