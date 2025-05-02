@@ -16,14 +16,13 @@ from utils.whatsappBot import (
     history_conversation_flow,
 )
 import re
-from utils.database.postgres import get_conversations_from_number, save_message_to_db
+from utils.database.postgres import save_message_to_db
 from collections import defaultdict
 from twilio.rest import Client
 from pydantic import BaseModel
 from fastapi import Request
 from fastapi.responses import Response
 from twilio.twiml.messaging_response import MessagingResponse
-from typing import List
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -57,8 +56,8 @@ async def whatsapp(request: Request):
     4️⃣ Métodos de pago
         """
 
-        to_number = form.get("To").replace("whatsapp:+", "")
-        sender_number = form.get("From").replace("whatsapp:+", "")
+        to_number = form.get("To")
+        sender_number = form.get("From")
         conversation_whatsappp_history = conversation_whatsappp_histories[sender_number]
         conversation_last_interaction = get_last_message(conversation_whatsappp_history)
 
@@ -345,8 +344,16 @@ async def whatsapp(request: Request):
             {
                 "to": last_message["To"],
                 "from": last_message["from"],
-                "incoming_msg": last_message["incoming_msg"] if last_message["typeResponse"] != "gpt" else last_message["incoming_msg"]["content"],
-                "response": last_message["response"] if last_message["typeResponse"] != "gpt" else last_message["response"]["content"],
+                "incoming_msg": (
+                    last_message["incoming_msg"]
+                    if last_message["typeResponse"] != "gpt"
+                    else last_message["incoming_msg"]["content"]
+                ),
+                "response": (
+                    last_message["response"]
+                    if last_message["typeResponse"] != "gpt"
+                    else last_message["response"]["content"]
+                ),
                 "typeResponse": last_message["typeResponse"],
             }
         )
@@ -365,7 +372,7 @@ class SendMessageRequest(BaseModel):
 
 @router.post("/send")
 async def send_message(data: SendMessageRequest):
-    message = twilio_client.messages.create(
+    twilio_client.messages.create(
         body=data.message,
         from_=whatsapp_from,
         to=f"whatsapp:{data.to}",
@@ -373,27 +380,10 @@ async def send_message(data: SendMessageRequest):
 
     await save_message_to_db(
         {
-            "to": data.to.replace("+", ""),
-            "from": whatsapp_from.replace("whatsapp:+", ""),
+            "to": whatsapp_from,
+            "from": data.to,
             "incoming_msg": "",
             "response": data.message,
             "typeResponse": "vendedor",
         }
     )
-    return {"sid": message.sid}
-
-
-class Conversation(BaseModel):
-    id: int
-    to: str
-    from_number: str
-    incoming_msg: str
-    response: str
-    type_response: str
-    created_at: datetime
-
-
-@router.get("/conversations/{phone_number}", response_model=List[Conversation])
-async def get_conversations_by_number(phone_number: str):
-    result = await get_conversations_from_number(phone_number)
-    return result

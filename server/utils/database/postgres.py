@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from sqlalchemy import delete
+from sqlalchemy import desc, func, select
 from .connection import database
 from .models import conversations
 
@@ -22,12 +24,39 @@ async def save_message_to_db(last_message: dict):
     await database.execute(query)
 
 
-async def get_conversations_from_number(phone_number):
-    # query = conversations.select().where(
-    #     conversations.c.to == phone_number
-    #     or conversations.c.from_number == phone_number
-    # )
-    query = conversations.select()
+async def conversations_from_number(phone_number):
+    query = conversations.select().where(conversations.c.from_number == phone_number)
     return await database.fetch_all(query)
+
+
+async def conversations_open():
+    c1 = conversations.alias("c1")
+    c2 = conversations.alias("c2")
+
+    subquery = (
+        select(func.max(c2.c.created_at))
+        .where(c2.c.from_number == c1.c.from_number)
+        .scalar_subquery()
+    )
+
+    query = (
+        select(c1).where(c1.c.created_at == subquery).order_by(desc(c1.c.created_at))
+    )
+
+    return await database.fetch_all(query)
+
+
+async def delete_conversation(from_number: str):
+    query = delete(conversations).where(conversations.c.from_number == from_number)
+    await database.execute(query)
+
+
+async def delete_all_conversation():
+    """
+    Deletes all conversations from the database
+    """
+    query = delete(conversations)
+    await database.execute(query)
+
 
 app = FastAPI(lifespan=lifespan)
