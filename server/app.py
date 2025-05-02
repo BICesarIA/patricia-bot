@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.database.postgres import lifespan
 from routes.twilio import router as twilio_router
 from routes.conversations import router as conversations_router
+from routes.ws_routes import router as ws_router
 
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(twilio_router)
 app.include_router(conversations_router)
+app.include_router(ws_router)
 
 app.add_middleware(
     CORSMiddleware,
