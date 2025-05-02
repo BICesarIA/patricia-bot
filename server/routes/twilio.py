@@ -89,7 +89,7 @@ async def whatsapp(request: Request):
                         "from": conversation_last_interaction["from"],
                         "incoming_msg": incoming_msg,
                         "response": "",
-                        "typeResponse": "vendedor",
+                        "typeResponse": "client",
                     }
                 )
                 return str(resp)
@@ -384,6 +384,6 @@ async def send_message(data: SendMessageRequest):
             "from": data.to,
             "incoming_msg": "",
             "response": data.message,
-            "typeResponse": "vendedor",
+            "typeResponse": "seller",
         }
     )

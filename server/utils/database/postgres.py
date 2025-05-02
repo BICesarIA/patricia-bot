@@ -52,9 +52,6 @@ async def delete_conversation(from_number: str):
 
 
 async def delete_all_conversation():
-    """
-    Deletes all conversations from the database
-    """
     query = delete(conversations)
     await database.execute(query)
 
