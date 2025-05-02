@@ -4,6 +4,7 @@ from sqlalchemy import delete
 from sqlalchemy import desc, func, select
 from .connection import database
 from .models import conversations
+from utils.websocket_manager import manager
 
 
 @asynccontextmanager
@@ -14,14 +15,16 @@ async def lifespan(app: FastAPI):
 
 
 async def save_message_to_db(last_message: dict):
-    query = conversations.insert().values(
-        to=last_message.get("to"),
-        from_number=last_message.get("from"),
-        incoming_msg=last_message.get("incoming_msg"),
-        response=last_message.get("response"),
-        type_response=last_message.get("typeResponse"),
-    )
+    obj = {
+        "to": last_message.get("to"),
+        "from_number": last_message.get("from"),
+        "incoming_msg": last_message.get("incoming_msg"),
+        "response": last_message.get("response"),
+        "type_response": last_message.get("typeResponse"),
+    }
+    query = conversations.insert().values(obj)
     await database.execute(query)
+    await manager.broadcast({"type": "message", "payload": obj})
 
 
 async def conversations_from_number(phone_number):
