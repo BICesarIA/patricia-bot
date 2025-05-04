@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from sqlalchemy import delete
@@ -28,7 +29,15 @@ async def save_message_to_db(last_message: dict):
     select_query = select(conversations).where(conversations.c.id == last_record_id)
     row = await database.fetch_one(select_query)
 
-    await manager.broadcast({"type": "message", "payload": dict(row)})
+    await manager.broadcast({"type": "message", "payload": serialize_row(row)})
+
+
+def serialize_row(row):
+    result = dict(row)
+    for k, v in result.items():
+        if isinstance(v, datetime):
+            result[k] = v.isoformat()
+    return result
 
 
 async def conversations_from_number(phone_number):
