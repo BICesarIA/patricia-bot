@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 0, 0, 0;
+  --gold: 255, 184, 76;
+}
+
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 0, 0, 0;
+}
+
+.light {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  .btn-gold {
+    @apply bg-gold text-black font-semibold py-3 px-6 rounded-md hover:bg-gold/90 transition-all transform hover:scale-105;
+  }
+
+  .btn-white {
+    @apply bg-white text-black font-semibold py-3 px-6 rounded-md hover:bg-gray-100 transition-all transform hover:scale-105;
+  }
+
+  .card {
+    @apply bg-white p-6 rounded-lg border border-gray-200 shadow-xl transition-all hover:shadow-gold/20 hover:shadow-lg dark:bg-gray-900 dark:border-gray-800;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold dark:bg-gray-800 dark:border-gray-700;
+  }
+
+  .dashboard-card {
+    @apply bg-white p-4 rounded-lg border border-gray-200 shadow-md dark:bg-gray-900 dark:border-gray-800;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-2 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors dark:hover:bg-gray-800;
+  }
+
+  .sidebar-link.active {
+    @apply bg-gray-200 text-gold dark:bg-gray-800;
+  }
+}
