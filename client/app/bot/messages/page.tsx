@@ -9,6 +9,7 @@ import { MessageSquare, Tag } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import axios from "axios"
 import { formatDateTime } from "@/utils/formatDate"
+import ChatWindow from "../chat/page"
 
 type Message = {
   id: string;
@@ -25,6 +26,8 @@ export default function PatriciaBOT() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   const [messages, setMessages] = useState<Message[]>([])
   const messageRef = useRef<Message[]>([])
+  const [selectedChatNumber, setselectedChatNumber] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -107,19 +110,20 @@ export default function PatriciaBOT() {
                 <h2 className="text-lg font-semibold flex items-center">
                   <MessageSquare size={18} className="mr-2" /> Messages
                 </h2>
-                <div className="flex gap-2">
+                {/* <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Search messages..."
                     className="px-3 py-1 text-sm bg-gray-800 border border-gray-700 rounded-md"
                   />
                   <button className="btn-white text-sm py-1 px-3">Search</button>
-                </div>
+                </div> */}
               </div>
 
               <div className="space-y-3">
                 {messages.map((message) => (
-                  <div key={message["id"]} className="bg-gray-800 p-3 rounded-md hover:bg-gray-700 cursor-pointer">
+                  <div key={message["id"]} className="bg-gray-800 p-3 rounded-md hover:bg-gray-700 cursor-pointer"
+                    onClick={() => setselectedChatNumber(message["from_number"])}>
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">{message["from_number"]}</h3>
@@ -165,6 +169,21 @@ export default function PatriciaBOT() {
       </div>
 
       <Footer />
+
+      {selectedChatNumber && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md h-[80%] relative">
+            <button
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+              onClick={() => setselectedChatNumber(null)}
+            >
+              ✕
+            </button>
+            <ChatWindow currentUser={selectedChatNumber} />
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
