@@ -100,7 +100,7 @@ export default function ChatWindow({ currentUser }: ChatWindowProps) {
         try {
             debugger
             await axios.post(`${API_BASE_PROTOCOLE}${API_BASE_URL}/send`, {
-                to: currentUser.replace('whatsapp:', ''),
+                to: currentUser,
                 message,
             });
 

@@ -17,8 +17,8 @@ async def lifespan(app: FastAPI):
 
 async def save_message_to_db(last_message: dict):
     obj = {
-        "to": last_message.get("to"),
-        "from_number": last_message.get("from"),
+        "to": last_message.get("to").replace('whatsapp:', ''),
+        "from_number": last_message.get("from").replace('whatsapp:', ''),
         "incoming_msg": last_message.get("incoming_msg"),
         "response": last_message.get("response"),
         "type_response": last_message.get("typeResponse"),
