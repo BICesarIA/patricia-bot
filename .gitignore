@@ -6,6 +6,8 @@
 ### dotenv ###
 .env
 **/.env/
+.next/
+client/.next/
 
 ### Flask ###
 instance/*
