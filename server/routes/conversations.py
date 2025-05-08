@@ -8,6 +8,7 @@ from utils.database.postgres import (
 )
 from typing import List
 from fastapi import APIRouter
+from typing import Optional
 
 router = APIRouter()
 
@@ -16,8 +17,8 @@ class Conversation(BaseModel):
     id: int
     to: str
     from_number: str
-    incoming_msg: str
-    response: str
+    incoming_msg: Optional[str] = None
+    response: Optional[str] = None
     type_response: str
     created_at: datetime
 
