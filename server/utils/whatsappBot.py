@@ -3,7 +3,9 @@ import pytz
 import os
 import json
 
-PHRASES_END_CONVERSATION_BY_GPT = json.loads(os.getenv("PHRASES_END_CONVERSATION_BY_GPT"))
+PHRASES_END_CONVERSATION_BY_GPT = json.loads(
+    os.getenv("PHRASES_END_CONVERSATION_BY_GPT")
+)
 
 
 def history_conversation_flow(
@@ -38,11 +40,15 @@ def get_last_message(conversation_whatsappp_history):
     )
 
 
-def gpt_end_conversation(gpt_response, conversation_whatsappp_history):
-    if any(
-        sentence.lower() in gpt_response.lower()
-        for sentence in PHRASES_END_CONVERSATION_BY_GPT
+def gpt_end_conversation(
+    end_conversation_bypass, gpt_response, conversation_whatsappp_history
+):
+    if end_conversation_bypass or (
+        any(
+            sentence.lower() in gpt_response.lower()
+            for sentence in PHRASES_END_CONVERSATION_BY_GPT
+        )
     ):
-        clear_conversation(conversation_whatsappp_history)
+        # clear_conversation(conversation_whatsappp_history)
         return True
     return False

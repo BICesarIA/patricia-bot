@@ -213,7 +213,7 @@ async def whatsapp(request: Request):
             gpt_response = conversation_send_openai(gpt_conversation_history)
 
             end_conversation = gpt_end_conversation(
-                gpt_response, conversation_whatsappp_history
+                False, gpt_response, conversation_whatsappp_history
             )
             if end_conversation:
                 next_step = "start_menu"
@@ -231,6 +231,8 @@ async def whatsapp(request: Request):
             msg.body(gpt_response)
 
         elif conversation_last_interaction["next_step"] == "gpt_conversation":
+            end_conversation_bypass = False
+
             history_conversation_flow(
                 conversation_whatsappp_history,
                 to_number,
@@ -253,64 +255,58 @@ async def whatsapp(request: Request):
             next_step = "gpt_conversation"
 
             end_conversation = gpt_end_conversation(
-                gpt_response, conversation_whatsappp_history
+                end_conversation_bypass, gpt_response, conversation_whatsappp_history
             )
             if end_conversation:
                 next_step = "start_menu"
 
             if IMAGE_TRIGGER_PHRASE.lower() in gpt_response.lower():
-                match = re.search(
-                    f"{re.escape(IMAGE_TRIGGER_PHRASE.lower())} (.+)",
-                    gpt_response.lower(),
-                )
-                not_image_response = "Permíteme unos minutos y te envío la foto en breve"
-                if match:
-                    product_name = match.group(1).strip()
-                    df = read_sheet_inventario("Inventario", "Inventario")
-                    image_series = df[
-                        df["Articulo"].str.lower() == product_name.lower()
-                    ]["Imagen"]
+                cannot_show_image = False
 
-                    if not image_series.empty:
-                        image_url = image_series.iloc[0]
-                        if is_valid_image_url(image_url):
-                            msg.media(image_url)
+                try:
+                    match = re.search(
+                        f"{re.escape(IMAGE_TRIGGER_PHRASE.lower())} (.+)",
+                        gpt_response.lower(),
+                    )
+                    if match:
+                        product_name = match.group(1).strip()
+                        df = read_sheet_inventario("Inventario", "Inventario")
+                        image_series = df[
+                            df["Articulo"].str.lower() == product_name.lower()
+                        ]["Imagen"]
 
-                        history_conversation_flow(
-                            conversation_whatsappp_history,
-                            to_number,
-                            sender_number,
-                            {"role": "user", "content": incoming_msg},
-                            "gpt_conversation",
-                            next_step,
-                            {"role": "assistant", "content": gpt_response},
-                            "gpt",
-                        )
-                        msg.body(gpt_response)
+                        if not image_series.empty:
+                            image_url = image_series.iloc[0]
+                            if is_valid_image_url(image_url):
+                                msg.media(image_url)
 
-                        history_conversation_flow(
-                            conversation_whatsappp_history,
-                            to_number,
-                            sender_number,
-                            None,
-                            "gpt_conversation",
-                            next_step,
-                            {"role": "assistant", "content": "<image of product>"},
-                            "gpt",
-                        )
-                    else:
-                        history_conversation_flow(
-                            conversation_whatsappp_history,
-                            to_number,
-                            sender_number,
-                            {"role": "user", "content": incoming_msg},
-                            "gpt_conversation",
-                            next_step,
-                            {"role": "assistant", "content": not_image_response},
-                            "gpt",
-                        )
-                        msg.body(not_image_response)
-                else:
+                                history_conversation_flow(
+                                    conversation_whatsappp_history,
+                                    to_number,
+                                    sender_number,
+                                    None,
+                                    "gpt_conversation",
+                                    next_step,
+                                    {
+                                        "role": "assistant",
+                                        "content": "<image of product>",
+                                    },
+                                    "gpt",
+                                )
+                            else:
+                                cannot_show_image = True
+                        else:
+                            cannot_show_image = True
+                except:
+                    cannot_show_image = True
+
+                if cannot_show_image:
+                    not_image_response = (
+                        "Permíteme unos minutos y te envío la foto en breve"
+                    )
+                    end_conversation_bypass = True
+                    next_step = "start_menu"
+
                     history_conversation_flow(
                         conversation_whatsappp_history,
                         to_number,
@@ -321,6 +317,7 @@ async def whatsapp(request: Request):
                         {"role": "assistant", "content": not_image_response},
                         "gpt",
                     )
+
                     msg.body(not_image_response)
             else:
                 history_conversation_flow(
@@ -341,30 +338,33 @@ async def whatsapp(request: Request):
             time.sleep(0)
 
         last_message = get_last_message(conversation_whatsappp_history)
-        incoming_msg = None
-        response = None
-        if last_message["incoming_msg"] is not None:
-            incoming_msg = (
-                last_message["incoming_msg"]
-                if last_message["typeResponse"] != "gpt"
-                else last_message["incoming_msg"]["content"]
-            )
-        if last_message["response"] is not None:
-            response = (
-                last_message["response"]
-                if last_message["typeResponse"] != "gpt"
-                else last_message["response"]["content"]
+
+        if last_message:
+            incoming_msg = None
+            response = None
+            if last_message["incoming_msg"] is not None:
+                incoming_msg = (
+                    last_message["incoming_msg"]
+                    if last_message["typeResponse"] != "gpt"
+                    else last_message["incoming_msg"]["content"]
+                )
+            if last_message["response"] is not None:
+                response = (
+                    last_message["response"]
+                    if last_message["typeResponse"] != "gpt"
+                    else last_message["response"]["content"]
+                )
+
+            await save_message_to_db(
+                {
+                    "to": last_message["To"],
+                    "from": last_message["from"],
+                    "incoming_msg": incoming_msg,
+                    "response": response,
+                    "typeResponse": last_message["typeResponse"],
+                }
             )
 
-        await save_message_to_db(
-            {
-                "to": last_message["To"],
-                "from": last_message["from"],
-                "incoming_msg": incoming_msg,
-                "response": response,
-                "typeResponse": last_message["typeResponse"],
-            }
-        )
         return Response(content=str(resp), media_type="application/xml")
     except Exception as e:
         msg.body(
