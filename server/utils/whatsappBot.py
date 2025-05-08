@@ -1,5 +1,9 @@
 from datetime import datetime
 import pytz
+import os
+import json
+
+PHRASES_END_CONVERSATION_BY_GPT = json.loads(os.getenv("PHRASES_END_CONVERSATION_BY_GPT"))
 
 
 def history_conversation_flow(
@@ -37,12 +41,7 @@ def get_last_message(conversation_whatsappp_history):
 def gpt_end_conversation(gpt_response, conversation_whatsappp_history):
     if any(
         sentence.lower() in gpt_response.lower()
-        for sentence in [
-            "De este no tengo en tienda😓. Permíteme validar con mi supervisor si tenemos en almacén y en breve le respondo🙌🏾",
-            "En breve estoy con usted 🙏🏾",
-            "desea envío o pasaría por tienda",
-            "deseas envío o pasarías por la tienda"
-        ]
+        for sentence in PHRASES_END_CONVERSATION_BY_GPT
     ):
         clear_conversation(conversation_whatsappp_history)
         return True

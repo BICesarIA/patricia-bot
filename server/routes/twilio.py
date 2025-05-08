@@ -263,6 +263,7 @@ async def whatsapp(request: Request):
                     f"{re.escape(IMAGE_TRIGGER_PHRASE.lower())} (.+)",
                     gpt_response.lower(),
                 )
+                not_image_response = "Permíteme unos minutos y te envío la foto en breve"
                 if match:
                     product_name = match.group(1).strip()
                     df = read_sheet_inventario("Inventario", "Inventario")
@@ -270,7 +271,6 @@ async def whatsapp(request: Request):
                         df["Articulo"].str.lower() == product_name.lower()
                     ]["Imagen"]
 
-                    not_image_response = f"Disculpa, no tenemos foto de {product_name.upper()} por el momento 😥"
                     if not image_series.empty:
                         image_url = image_series.iloc[0]
                         if is_valid_image_url(image_url):
