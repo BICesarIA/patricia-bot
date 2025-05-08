@@ -270,57 +270,46 @@ async def whatsapp(request: Request):
                         df["Articulo"].str.lower() == product_name.lower()
                     ]["Imagen"]
 
-                    history_conversation_flow(
-                        conversation_whatsappp_history,
-                        to_number,
-                        sender_number,
-                        None,
-                        "gpt_conversation",
-                        next_step,
-                        {"role": "assistant", "content": f"{gpt_response} [IMAGEN]"},
-                        "gpt",
-                    )
-
+                    not_image_response = f"Disculpa, no tenemos foto de {product_name.upper()} por el momento 😥"
                     if not image_series.empty:
-                        not_image_response = "Disculpa, no tenemos foto de ese articulo por el momento 😥"
                         image_url = image_series.iloc[0]
                         if is_valid_image_url(image_url):
                             msg.media(image_url)
 
-                            history_conversation_flow(
-                                conversation_whatsappp_history,
-                                to_number,
-                                sender_number,
-                                {"role": "user", "content": incoming_msg},
-                                "gpt_conversation",
-                                next_step,
-                                {"role": "assistant", "content": gpt_response},
-                                "gpt",
-                            )
-                            msg.body(gpt_response)
+                        history_conversation_flow(
+                            conversation_whatsappp_history,
+                            to_number,
+                            sender_number,
+                            {"role": "user", "content": incoming_msg},
+                            "gpt_conversation",
+                            next_step,
+                            {"role": "assistant", "content": gpt_response},
+                            "gpt",
+                        )
+                        msg.body(gpt_response)
 
-                            history_conversation_flow(
-                                conversation_whatsappp_history,
-                                to_number,
-                                sender_number,
-                                None,
-                                "gpt_conversation",
-                                next_step,
-                                {"role": "assistant", "content": "<image of product>"},
-                                "gpt",
-                            )
-                        else:
-                            history_conversation_flow(
-                                conversation_whatsappp_history,
-                                to_number,
-                                sender_number,
-                                {"role": "user", "content": incoming_msg},
-                                "gpt_conversation",
-                                next_step,
-                                {"role": "assistant", "content": not_image_response},
-                                "gpt",
-                            )
-                            msg.body(not_image_response)
+                        history_conversation_flow(
+                            conversation_whatsappp_history,
+                            to_number,
+                            sender_number,
+                            None,
+                            "gpt_conversation",
+                            next_step,
+                            {"role": "assistant", "content": "<image of product>"},
+                            "gpt",
+                        )
+                    else:
+                        history_conversation_flow(
+                            conversation_whatsappp_history,
+                            to_number,
+                            sender_number,
+                            {"role": "user", "content": incoming_msg},
+                            "gpt_conversation",
+                            next_step,
+                            {"role": "assistant", "content": not_image_response},
+                            "gpt",
+                        )
+                        msg.body(not_image_response)
                 else:
                     history_conversation_flow(
                         conversation_whatsappp_history,

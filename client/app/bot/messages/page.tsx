@@ -113,7 +113,6 @@ export default function PatriciaBOT() {
               <div className="space-y-3">
                 {
                   messages.map((message) => {
-                    debugger
                     return (
                       <div
                         key={message["id"]}
