@@ -13,34 +13,33 @@ import ChatWindow from "../chat/page"
 
 type Message = {
   id: string;
-  to: string;
   from_number: string;
   incoming_msg: string;
   response: string;
-  type_response: string;
   created_at: string;
+  is_new: boolean;
 };
 
 export default function PatriciaBOT() {
-  const API_BASE_PROTOCOLE = process.env.NEXT_PUBLIC_API_PROTOCOLE
+  const API_WEBSOCKET_PROTOCOL = process.env.NEXT_PUBLIC_API_WEBSOCKET_PROTOCOL
+  const API_BASE_PROTOCOL = process.env.NEXT_PUBLIC_API_PROTOCOL
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   const [messages, setMessages] = useState<Message[]>([])
-  const messageRef = useRef<Message[]>([])
+  // const messageRef = useRef<Message[]>([])
   const [selectedChatNumber, setselectedChatNumber] = useState<string | null>(null);
-
 
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const res = await axios.get(`${API_BASE_PROTOCOLE}${API_BASE_URL}/conversations/`)
+        const res = await axios.get(`${API_BASE_PROTOCOL}${API_BASE_URL}/conversations/`)
         setMessages(res.data)
       } catch (error) {
         console.log(error)
       }
     }
     fetchMessages()
-
-    const ws = new WebSocket(`wss://${API_BASE_URL}/ws`)
+    
+    const ws = new WebSocket(`${API_WEBSOCKET_PROTOCOL}://${API_BASE_URL}/${API_WEBSOCKET_PROTOCOL}`)
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "message") {
@@ -55,8 +54,8 @@ export default function PatriciaBOT() {
               ...updated[index],
               incoming_msg: data.payload.incoming_msg,
               response: data.payload.response,
-              type_response: data.payload.type_response,
               created_at: data.payload.created_at,
+              is_new: true
             };
             return updated;
           } else {
@@ -69,10 +68,9 @@ export default function PatriciaBOT() {
     return () => ws.close()
   }, [])
 
-  // setMessages((prev) => [...prev, data.payload])
-  useEffect(() => {
-    messageRef.current = messages
-  }, [messages])
+  // useEffect(() => {
+  //   messageRef.current = messages
+  // }, [messages])
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -100,7 +98,7 @@ export default function PatriciaBOT() {
               </h2>
               <div className="space-y-2">
                 <button className="w-full text-left px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700">
-                  All Messages
+                  Todos los mensajes
                 </button>
               </div>
             </div>
@@ -108,34 +106,37 @@ export default function PatriciaBOT() {
             <div className="lg:col-span-3 bg-gray-900 rounded-lg p-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold flex items-center">
-                  <MessageSquare size={18} className="mr-2" /> Messages
+                  <MessageSquare size={18} className="mr-2" /> Mensajes
                 </h2>
-                {/* <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Search messages..."
-                    className="px-3 py-1 text-sm bg-gray-800 border border-gray-700 rounded-md"
-                  />
-                  <button className="btn-white text-sm py-1 px-3">Search</button>
-                </div> */}
               </div>
 
               <div className="space-y-3">
-                {messages.map((message) => (
-                  <div key={message["id"]} className="bg-gray-800 p-3 rounded-md hover:bg-gray-700 cursor-pointer"
-                    onClick={() => setselectedChatNumber(message["from_number"])}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">{message["from_number"]}</h3>
-                        <p className="text-sm text-gray-400">{message["from_number"]}</p>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {formatDateTime(message["created_at"])}
-                      </div>
-                    </div>
-                    <p className="mt-2 text-sm">{message["response"] || message["incoming_msg"]}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      {/* <span
+                {
+                  messages.map((message) => {
+                    debugger
+                    return (
+                      <div
+                        key={message["id"]}
+                        className={`p-3 rounded-md hover:bg-gray-700 cursor-pointer transition-all border-l-4 ${message['is_new'] ? 'border-blue-400 bg-blue-950' : 'border-transparent bg-gray-800'
+                          }`}
+                        onClick={() => setselectedChatNumber(message["from_number"])}
+                      >
+                        {message['is_new'] && (
+                          <span className="inline-block w-2 h-2 bg-green-400 rounded-full ml-2 mt-1 animate-pulse"></span>
+                        )}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium text-white">{message["from_number"]}</h3>
+                            <p className="text-sm text-gray-400">{message["from_number"]}</p>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {formatDateTime(message["created_at"])}
+                          </div>
+                        </div>
+                        <p className={`mt-2 text-sm ${message['is_new'] ? 'font-semibold text-white' : 'text-gray-400'}`}>
+                          {message["response"] || message["incoming_msg"]}
+                        </p>
+                        {/* <span
                         className={`text-xs px-2 py-1 rounded-full ${message.label === "Account"
                           ? "bg-blue-900 text-blue-200"
                           : message.label === "Payment"
@@ -149,19 +150,9 @@ export default function PatriciaBOT() {
                       >
                         {message.label}
                       </span> */}
-                      {/* <span
-                        className={`text-xs ${message.status === "Answered"
-                          ? "text-green-400"
-                          : message.status === "Pending"
-                            ? "text-yellow-400"
-                            : "text-red-400"
-                          }`}
-                      >
-                        {message.status}
-                      </span> */}
-                    </div>
-                  </div>
-                ))}
+                      </div>
+                    )
+                  })}
               </div>
             </div>
           </div>

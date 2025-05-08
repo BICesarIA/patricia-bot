@@ -21,7 +21,8 @@ type Message = {
 };
 
 export default function ChatWindow({ currentUser }: ChatWindowProps) {
-    const API_BASE_PROTOCOLE = process.env.NEXT_PUBLIC_API_PROTOCOLE;
+    const API_WEBSOCKET_PROTOCOL = process.env.NEXT_PUBLIC_API_WEBSOCKET_PROTOCOL
+    const API_BASE_PROTOCOLE = process.env.NEXT_PUBLIC_API_PROTOCOL;
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -55,11 +56,10 @@ export default function ChatWindow({ currentUser }: ChatWindowProps) {
                 });
                 setMessages(mappedMessages);
 
-                const ws = new WebSocket(`wss://${API_BASE_URL}/ws`)
+                const ws = new WebSocket(`${API_WEBSOCKET_PROTOCOL}://${API_BASE_URL}/${API_WEBSOCKET_PROTOCOL}`)
                 ws.onmessage = (event) => {
                     const messagesObj2: Message[] = [];
                     const data = JSON.parse(event.data);
-                    debugger
                     if (data.type === "message") {
                         const payload = data.payload
                         if (payload.incoming_msg) {
@@ -98,7 +98,6 @@ export default function ChatWindow({ currentUser }: ChatWindowProps) {
         const message = input;
 
         try {
-            debugger
             await axios.post(`${API_BASE_PROTOCOLE}${API_BASE_URL}/send`, {
                 to: currentUser,
                 message,

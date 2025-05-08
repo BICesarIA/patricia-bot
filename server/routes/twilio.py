@@ -269,6 +269,18 @@ async def whatsapp(request: Request):
                     image_series = df[
                         df["Articulo"].str.lower() == product_name.lower()
                     ]["Imagen"]
+
+                    history_conversation_flow(
+                        conversation_whatsappp_history,
+                        to_number,
+                        sender_number,
+                        None,
+                        "gpt_conversation",
+                        next_step,
+                        {"role": "assistant", "content": f"{gpt_response} [IMAGEN]"},
+                        "gpt",
+                    )
+
                     if not image_series.empty:
                         not_image_response = "Disculpa, no tenemos foto de ese articulo por el momento 😥"
                         image_url = image_series.iloc[0]
@@ -337,23 +349,30 @@ async def whatsapp(request: Request):
             conversation_last_interaction
             and conversation_last_interaction["typeResponse"] == "gpt"
         ):
-            time.sleep(5)
+            time.sleep(0)
 
         last_message = get_last_message(conversation_whatsappp_history)
+        incoming_msg = None
+        response = None
+        if last_message["incoming_msg"] is not None:
+            incoming_msg = (
+                last_message["incoming_msg"]
+                if last_message["typeResponse"] != "gpt"
+                else last_message["incoming_msg"]["content"]
+            )
+        if last_message["response"] is not None:
+            response = (
+                last_message["response"]
+                if last_message["typeResponse"] != "gpt"
+                else last_message["response"]["content"]
+            )
+
         await save_message_to_db(
             {
                 "to": last_message["To"],
                 "from": last_message["from"],
-                "incoming_msg": (
-                    last_message["incoming_msg"]
-                    if last_message["typeResponse"] != "gpt"
-                    else last_message["incoming_msg"]["content"]
-                ),
-                "response": (
-                    last_message["response"]
-                    if last_message["typeResponse"] != "gpt"
-                    else last_message["response"]["content"]
-                ),
+                "incoming_msg": incoming_msg,
+                "response": response,
                 "typeResponse": last_message["typeResponse"],
             }
         )

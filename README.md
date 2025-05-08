@@ -5,9 +5,12 @@ pip install -r requirements.tx
 
 2. Set Up Environment Variables
 ```
-GPT_MODEL_USED=gpt_model
-OPENAI_API_KEY=your_openai_api_key
-PROMPT_INICIAL=conversation_goal
+GOOGLE_SHEET_CREDENTIALS
+GPT_MODEL_USED
+OPENAI_API_KEY
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+PROMPT_INICIAL
 ```
 
 3. Run project
