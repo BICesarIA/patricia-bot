@@ -56,7 +56,7 @@ export default function ChatWindow({ currentUser }: ChatWindowProps) {
                 });
                 setMessages(mappedMessages);
 
-                const ws = new WebSocket(`${API_WEBSOCKET_PROTOCOL}://${API_BASE_URL}/${API_WEBSOCKET_PROTOCOL}`)
+                const ws = new WebSocket(`${API_WEBSOCKET_PROTOCOL}://${API_BASE_URL}/ws`)
                 ws.onmessage = (event) => {
                     const messagesObj2: Message[] = [];
                     const data = JSON.parse(event.data);

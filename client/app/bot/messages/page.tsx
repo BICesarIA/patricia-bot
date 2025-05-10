@@ -39,7 +39,7 @@ export default function PatriciaBOT() {
     }
     fetchMessages()
     
-    const ws = new WebSocket(`${API_WEBSOCKET_PROTOCOL}://${API_BASE_URL}/${API_WEBSOCKET_PROTOCOL}`)
+    const ws = new WebSocket(`${API_WEBSOCKET_PROTOCOL}://${API_BASE_URL}/ws`)
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "message") {
